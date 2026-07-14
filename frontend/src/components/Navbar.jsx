@@ -8,6 +8,7 @@ const NAV = [
   { id: "about", en: "About", te: "మా గురించి" },
   { id: "courses", en: "Courses", te: "కోర్సులు" },
   { id: "trainer", en: "Trainer", te: "ట్రైనర్" },
+  { id: "demo", en: "Free Demo", te: "ఉచిత డెమో" },
   { id: "why", en: "Why Us", te: "ఎందుకు మేము" },
   { id: "vision", en: "Vision", te: "లక్ష్యం" },
   { id: "journey", en: "Journey", te: "ప్రయాణం" },

@@ -203,6 +203,8 @@ class CourseModel(BaseModel):
     outcomes_te: List[str] = Field(default_factory=list)
     prerequisites_en: str = ""
     prerequisites_te: str = ""
+    exercises_en: List[str] = Field(default_factory=list)
+    exercises_te: List[str] = Field(default_factory=list)
     projects_en: List[str] = Field(default_factory=list)
     projects_te: List[str] = Field(default_factory=list)
     career_en: List[str] = Field(default_factory=list)
@@ -236,6 +238,14 @@ class ChatIn(BaseModel):
     session_id: str
     message: str
     lang: str = "en"  # 'en' | 'te'
+
+class DemoBookingIn(BaseModel):
+    name: str
+    phone: str
+    date: str
+    time: str
+    course: Optional[str] = ""
+    notes: Optional[str] = ""
 
 # ─────────────────────────── Seed defaults ───────────────────────────
 DEFAULT_COURSES = [
@@ -352,6 +362,26 @@ async def dispatch_admission_notification(admission: Dict[str, Any]) -> None:
     except Exception as e:
         logger.error("dispatch_admission_notification failed: %s", e)
 
+async def dispatch_demo_notification(booking: Dict[str, Any]) -> None:
+    """Fire-and-forget dispatch for demo bookings. Reuses same channels."""
+    try:
+        cfg = await db.site_content.find_one({"_id": "singleton"}) or {}
+        if not cfg.get("notifications_enabled", True):
+            return
+        subject = f"New Demo Booking — {booking.get('name')} on {booking.get('date')} at {booking.get('time')}"
+        html = _demo_email_html(booking)
+        enabled_channels = cfg.get("enabled_notification_channels") or ["email"]
+        for name in enabled_channels:
+            ch = NOTIFICATION_CHANNELS.get(name)
+            if not ch:
+                continue
+            to = (cfg.get(ch["recipient_key"]) or "").strip()
+            if not to:
+                continue
+            asyncio.create_task(ch["send"](to, subject, html))
+    except Exception as e:
+        logger.error("dispatch_demo_notification failed: %s", e)
+
 def _admission_email_html(a: Dict[str, Any]) -> str:
     return f"""
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
@@ -372,6 +402,27 @@ def _admission_email_html(a: Dict[str, Any]) -> str:
           <tr><td style="padding:6px 0;color:#475569;vertical-align:top">Address</td><td style="padding:6px 0">{a.get('address','')}</td></tr>
         </table>
         <p style="margin:20px 0 0;font-size:12px;color:#64748b">Received at {a.get('created_at','')}. Open the admin panel to view the student photo.</p>
+      </div>
+    </div>
+    """
+
+def _demo_email_html(b: Dict[str, Any]) -> str:
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+      <div style="background:#0A2342;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0">
+        <h2 style="margin:0;font-family:Arial,sans-serif">New Free Demo Booking</h2>
+        <p style="margin:6px 0 0;color:#C9A227;font-size:12px;letter-spacing:2px">NEXTGEN COMPUTER ACADEMY</p>
+      </div>
+      <div style="background:#fff;border:1px solid #eee;border-top:0;padding:24px;border-radius:0 0 12px 12px">
+        <table style="width:100%;font-size:14px;color:#1E293B;border-collapse:collapse">
+          <tr><td style="padding:6px 0;color:#475569;width:160px">Name</td><td style="padding:6px 0;font-weight:600">{b.get('name','')}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Phone</td><td style="padding:6px 0"><a href="tel:{b.get('phone','')}" style="color:#0A2342">{b.get('phone','')}</a></td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Preferred Date</td><td style="padding:6px 0;font-weight:600;color:#0A2342">{b.get('date','')}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Preferred Time</td><td style="padding:6px 0;font-weight:600;color:#0A2342">{b.get('time','')}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Course Interest</td><td style="padding:6px 0">{b.get('course','') or '—'}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569;vertical-align:top">Notes</td><td style="padding:6px 0">{b.get('notes','') or '—'}</td></tr>
+        </table>
+        <p style="margin:20px 0 0;font-size:12px;color:#64748b">Received at {b.get('created_at','')}. Reach out to the student to confirm the demo slot.</p>
       </div>
     </div>
     """
@@ -593,6 +644,33 @@ async def update_testimonial(tid: str, body: Dict[str, Any], _: str = Depends(re
 @api_router.delete("/testimonials/{tid}")
 async def delete_testimonial(tid: str, _: str = Depends(require_admin)):
     await db.testimonials.delete_one({"id": tid})
+    return {"ok": True}
+
+# ─────────────────────────── Demo Bookings ───────────────────────────
+@api_router.post("/demo-bookings")
+async def create_demo_booking(body: DemoBookingIn):
+    doc = body.model_dump()
+    doc["id"] = str(uuid.uuid4())
+    doc["status"] = "new"
+    doc["created_at"] = datetime.now(timezone.utc).isoformat()
+    await db.demo_bookings.insert_one(doc)
+    await dispatch_demo_notification(doc)
+    return {"ok": True, "id": doc["id"], "message": "Demo booking received"}
+
+@api_router.get("/demo-bookings")
+async def list_demo_bookings(_: str = Depends(require_admin)):
+    items = await db.demo_bookings.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+    return items
+
+@api_router.put("/demo-bookings/{bid}/status")
+async def update_demo_status(bid: str, body: Dict[str, Any], _: str = Depends(require_admin)):
+    status = body.get("status", "new")
+    await db.demo_bookings.update_one({"id": bid}, {"$set": {"status": status}})
+    return {"ok": True, "status": status}
+
+@api_router.delete("/demo-bookings/{bid}")
+async def delete_demo_booking(bid: str, _: str = Depends(require_admin)):
+    await db.demo_bookings.delete_one({"id": bid})
     return {"ok": True}
 
 # ─────────────────────────── Bulk export ───────────────────────────

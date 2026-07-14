@@ -46,3 +46,12 @@ Build a premium production-ready bilingual (English + Telugu) website for NextGe
 - **Course editor extended** — added Practical Projects (bilingual) and Career Opportunities (bilingual) fields to every course. Full 8-field bilingual editor: title, short desc, long desc, syllabus, outcomes, prerequisites, projects, career opportunities + fee, duration, image URL, URL slug.
 - **Course detail page** — now displays Practical Projects and Career Opportunities sections when populated.
 - **Adaptive Navbar** — hides "Journey" and "Reviews" links until real content is added.
+
+## Free Demo Booking (2026-07-14 · Session 4)
+- **Public "Book a Free Demo Class" section** on homepage (`#demo`) between Trainer and Why-Choose-Us. Fully bilingual (EN + TE).
+  - Fields: name, phone, preferred date (date picker, min = tomorrow), preferred time (10 slots 9AM-7PM), course of interest (dropdown from live courses), notes.
+  - Optional "Join via WhatsApp" button that opens WhatsApp with a pre-filled bilingual message using the owner's WhatsApp number from admin.
+  - Success screen with confirmation + WhatsApp follow-up link.
+- **Backend** — new `demo_bookings` collection + endpoints (POST public, GET/PUT status/DELETE admin). Reuses `dispatch_admission_notification` pattern → sends bilingual HTML email via `_demo_email_html` to owner_notification_email on every booking (still no-ops without RESEND_API_KEY).
+- **Admin → Demo Bookings tab** — lists all bookings with status badges (new/contacted/done/cancelled), quick Call & WhatsApp buttons per booking, one-click "Mark Contacted / Mark Done", delete.
+- **Course model** extended with `exercises_en/te` (Practical Exercises) — 8 bilingual editable lists per course now: syllabus, outcomes, exercises, projects, career opportunities, plus prerequisites text and long description.

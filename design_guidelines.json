@@ -1,0 +1,125 @@
+{
+  "project_name": "NextGen Computer Academy",
+  "app_type": "marketing_site",
+  "theme_preference": "light",
+  "typography": {
+    "headings": {
+      "font_family": "Outfit, sans-serif",
+      "weights": ["300", "500", "700"],
+      "strategy": "Tech-forward yet premium. Use tracking-tight for all H1/H2."
+    },
+    "body": {
+      "font_family": "DM Sans, sans-serif",
+      "weights": ["400", "500"],
+      "strategy": "High legibility, clean geometric forms."
+    },
+    "telugu_support": {
+      "font_family": "Noto Sans Telugu, sans-serif",
+      "strategy": "Wrap all Telugu text blocks or elements in a container with a 'lang=\"te\"' attribute. Telugu text naturally expands by 20-30%, so use generous padding and avoid fixed heights. Increase line-height to 1.6 or 1.7 for Telugu."
+    },
+    "anti_pattern_banned_fonts": ["Inter", "Roboto", "Space Grotesk", "Open Sans"]
+  },
+  "colors": {
+    "background": {
+      "primary": "#FFFFFF",
+      "secondary": "#F8FAFC",
+      "navy_sections": "#0A2342"
+    },
+    "primary": {
+      "name": "Institutional Navy",
+      "hex": "#0A2342",
+      "usage": "Headers, Footers, Primary CTAs, bold text. Provides authority and trust."
+    },
+    "accent": {
+      "name": "Academy Gold",
+      "hex": "#C9A227",
+      "usage": "Use strictly as a 10-15% accent. Badges, CTA hover states, thin borders, hover underlines. Do not overuse to avoid visual noise."
+    },
+    "text": {
+      "main": "#1E293B",
+      "muted": "#475569",
+      "on_navy": "#FFFFFF",
+      "on_gold": "#000000"
+    }
+  },
+  "visual_enhancers": {
+    "glassmorphism": {
+      "strategy": "The 'Crystal' Variant. Use for the sticky header, floating action buttons, and feature cards over images.",
+      "classes": "bg-white/80 backdrop-blur-xl border border-slate-200/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+    },
+    "shadows": {
+      "cards": "shadow-sm hover:shadow-lg transition-shadow duration-300",
+      "floating_elements": "shadow-[0_20px_40px_-15px_rgba(10,35,66,0.2)]"
+    },
+    "borders": {
+      "strategy": "1px delicate borders (border-slate-100 or border-gold/20) rather than heavy outlines to maintain the premium feel."
+    }
+  },
+  "layouts": {
+    "spacing": "Generous. Use p-8 to p-12 inside sections. Section margins should be py-24.",
+    "hero": "Split layout or Full width with a heavy overlay. Since background is white, use the primary navy as the hero background OR a high-quality classroom image with bg-navy/80 overlay. Tagline: 'Learn Today. Lead Tomorrow.'",
+    "courses_grid": "Bento-style or 3-column auto-fit grid. Use glassmorphism cards if the background has a subtle texture, otherwise crisp white cards with a navy hover state.",
+    "why_choose_us": "Asymmetric Bento Grid (TETRIS MODE). Mix square and tall cards.",
+    "floating_dock": "Fixed bottom-right corner for AI Chat Assistant, WhatsApp button, and Call button. Stack them vertically with a staggered entrance animation."
+  },
+  "motion": {
+    "hero": "Fade up with Framer Motion (y: 20 -> 0, opacity: 0 -> 1) staggered by 0.2s.",
+    "scroll_reveal": "Use whileInView to fade up sections as the user scrolls. Do not over-animate text, animate the container.",
+    "hover_buttons": "Scale up slightly (scale-105), background shifts from Navy to Gold, text shifts to black.",
+    "floating_cards": "Subtle float animation (y: [-5, 5, -5]) for the AI chat widget or hero floating elements.",
+    "image_zoom": "overflow-hidden on container, scale-110 on the img during hover."
+  },
+  "components_needed": [
+    "LanguageToggle (English/Telugu state manager)",
+    "Navbar (Sticky Glassmorphism with bilingual links)",
+    "HeroSection (Banner with CTAs: Explore Courses / Online Admission / Contact)",
+    "CourseGrid (Cards with image, En/Te descriptions, hover zoom)",
+    "AdmissionForm (Shadcn forms, Input, Select, File Upload for Photo)",
+    "FloatingWidgets (AI Chatbot Popover, WhatsApp Link, Call Link)",
+    "AdminPanel (Mocked dashboard for owner to edit content/contacts)",
+    "GallerySection (Masonry or Grid layout of academy photos)"
+  ],
+  "image_urls": {
+    "hero_banner": {
+      "url": "https://images.pexels.com/photos/5530447/pexels-photo-5530447.jpeg",
+      "description": "Students focused on learning in a modern computer lab setting."
+    },
+    "course_typing": {
+      "url": "https://images.pexels.com/photos/7662061/pexels-photo-7662061.jpeg",
+      "description": "Close-up of hands typing on a black laptop keyboard."
+    },
+    "course_accounting_tally": {
+      "url": "https://images.unsplash.com/photo-1551288049-bebda4e38f71",
+      "description": "Graphs of performance analytics on a laptop screen."
+    },
+    "course_ai_tools": {
+      "url": "https://images.unsplash.com/photo-1677442135703-1787eea5ce01",
+      "description": "A computer circuit board with an artificial intelligence brain concept."
+    },
+    "course_career_skills": {
+      "url": "https://images.pexels.com/photos/6550165/pexels-photo-6550165.jpeg",
+      "description": "Young confident student holding a book in a library setting."
+    },
+    "course_computer_basics": {
+      "url": "https://images.pexels.com/photos/10638065/pexels-photo-10638065.jpeg",
+      "description": "Children and students engaged in educational activities in a computer lab."
+    }
+  },
+  "instructions_to_main_agent": [
+    "Install required fonts: Font families `Outfit`, `DM Sans`, and `Noto Sans Telugu` must be imported via Google Fonts in index.css.",
+    "Language State: Implement a global context or simple React state to toggle between 'en' and 'te'. Content arrays should look like `{ en: 'Title', te: 'శీర్షిక' }`.",
+    "Bilingual layout handling: Telugu text requires slightly more vertical space. Do not use strict fixed heights (like h-32) on text containers. Use min-h-32 or h-full.",
+    "Implement the 'Crystal' Glassmorphism style exactly as defined for floating widgets and navbars.",
+    "Form Implementation: Use Shadcn UI for the Admission Form. Include a mocked photo upload zone.",
+    "Admin Panel: Build a distinct route or mocked conditional render for the Admin Dashboard showing editable tables of contacts/admissions. No real backend needed, just the UI.",
+    "Icons: Use `lucide-react` for standard UI, but use `@phosphor-icons/react` or `react-icons` if you need brand logos (like WhatsApp)."
+  ],
+  "universal_guidelines_for_main_agent": [
+    "You tend to converge toward generic outputs. Break the mold: use asymmetrical grids, overlap elements slightly, and rely heavily on z-index depth.",
+    "Do not use dark colors as simple gradients. Use solid Navy with Gold accents.",
+    "Never center align paragraph text. Keep dense content left-aligned for natural reading.",
+    "Ensure all interactive elements have `data-testid` attributes (e.g., data-testid='hero-cta-button').",
+    "Never use AI assistant emoji characters (🤖🧠💭💡) for icons. Use real SVG icons.",
+    "Missing images? Use the specific Unsplash/Pexels URLs provided in this file. NEVER use placeholder text or dummyimage.com."
+  ]
+}

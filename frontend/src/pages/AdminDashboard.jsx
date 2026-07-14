@@ -1,0 +1,405 @@
+import React, { useEffect, useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
+import { LogOut, Save, Trash2, Upload, Plus, ExternalLink, RefreshCw, Loader2, Users, BookOpen, Settings, Image as ImageIcon, GraduationCap } from "lucide-react";
+import { authApi, contentApi, coursesApi, admissionsApi, galleryApi } from "@/lib/api";
+import { useApp } from "@/context/AppContext";
+
+const TABS = [
+  { key: "content", label: "Site Content", icon: Settings },
+  { key: "courses", label: "Courses", icon: BookOpen },
+  { key: "admissions", label: "Admissions", icon: Users },
+  { key: "gallery", label: "Gallery", icon: ImageIcon },
+];
+
+export default function AdminDashboard() {
+  const nav = useNavigate();
+  const { refresh } = useApp();
+  const [tab, setTab] = useState("content");
+  const [email, setEmail] = useState("");
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    authApi.me()
+      .then(r => setEmail(r.email))
+      .catch(() => nav("/admin"))
+      .finally(() => setChecking(false));
+  }, [nav]);
+
+  const logout = () => { localStorage.removeItem("ngca_token"); nav("/admin"); };
+
+  if (checking) return <div className="min-h-screen flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-navy" /></div>;
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-navy text-white sticky top-0 z-10">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-gold flex items-center justify-center">
+              <GraduationCap className="w-5 h-5 text-black" />
+            </div>
+            <div>
+              <div className="font-display font-bold">NextGen Admin</div>
+              <div className="text-[11px] text-white/60">{email}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/" target="_blank" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/10">
+              <ExternalLink className="w-4 h-4" /> View Site
+            </Link>
+            <button data-testid="admin-logout" onClick={logout} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-gold text-black font-semibold hover:bg-white transition-colors">
+              <LogOut className="w-4 h-4" /> Logout
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 grid lg:grid-cols-[240px_1fr] gap-6">
+        <aside className="lg:sticky lg:top-24 h-fit">
+          <nav className="flex lg:flex-col gap-1 bg-white rounded-2xl p-2 border border-slate-200 overflow-x-auto">
+            {TABS.map(t => (
+              <button
+                key={t.key}
+                data-testid={`admin-tab-${t.key}`}
+                onClick={() => setTab(t.key)}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-colors ${tab === t.key ? "bg-navy text-white" : "text-slate-700 hover:bg-slate-100"}`}
+              >
+                <t.icon className="w-4 h-4" /> {t.label}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <main>
+          {tab === "content" && <ContentTab onSaved={refresh} />}
+          {tab === "courses" && <CoursesTab onSaved={refresh} />}
+          {tab === "admissions" && <AdmissionsTab />}
+          {tab === "gallery" && <GalleryTab />}
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, textarea, className = "" }) {
+  return (
+    <div className={className}>
+      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">{label}</label>
+      {textarea ? (
+        <textarea value={value || ""} onChange={e => onChange(e.target.value)} rows={3} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-gold outline-none text-sm" />
+      ) : (
+        <input value={value || ""} onChange={e => onChange(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-gold outline-none text-sm" />
+      )}
+    </div>
+  );
+}
+
+function ContentTab({ onSaved }) {
+  const [c, setC] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { contentApi.get().then(setC); }, []);
+
+  if (!c) return <Loader2 className="w-5 h-5 animate-spin" />;
+
+  const setBi = (key, sub, v) => setC(o => ({ ...o, [key]: { ...(o[key] || {}), [sub]: v } }));
+  const setContact = (k, v) => setC(o => ({ ...o, contact: { ...(o.contact || {}), [k]: v } }));
+  const setWhy = (i, path, v) => {
+    const cp = [...(c.why_choose_us || [])];
+    const [group, sub] = path.split(".");
+    cp[i] = { ...cp[i], [group]: { ...(cp[i][group] || {}), [sub]: v } };
+    setC({ ...c, why_choose_us: cp });
+  };
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      await contentApi.update(c);
+      toast.success("Content saved");
+      onSaved?.();
+    } catch { toast.error("Save failed"); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Panel title="Academy Identity">
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Academy Name (English)" value={c.academy_name?.en} onChange={v => setBi("academy_name", "en", v)} />
+          <Field label="Academy Name (Telugu)" value={c.academy_name?.te} onChange={v => setBi("academy_name", "te", v)} />
+          <Field label="Tagline (English)" value={c.tagline?.en} onChange={v => setBi("tagline", "en", v)} />
+          <Field label="Tagline (Telugu)" value={c.tagline?.te} onChange={v => setBi("tagline", "te", v)} />
+          <Field label="Hero Banner Image URL" value={c.hero_image_url} onChange={v => setC({ ...c, hero_image_url: v })} className="md:col-span-2" />
+          <Field label="Logo Image URL" value={c.logo_url} onChange={v => setC({ ...c, logo_url: v })} className="md:col-span-2" />
+        </div>
+      </Panel>
+
+      <Panel title="Welcome / About / Vision">
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Welcome (English)" textarea value={c.welcome?.en} onChange={v => setBi("welcome", "en", v)} />
+          <Field label="Welcome (Telugu)" textarea value={c.welcome?.te} onChange={v => setBi("welcome", "te", v)} />
+          <Field label="About (English)" textarea value={c.about?.en} onChange={v => setBi("about", "en", v)} />
+          <Field label="About (Telugu)" textarea value={c.about?.te} onChange={v => setBi("about", "te", v)} />
+          <Field label="Vision (English)" textarea value={c.vision?.en} onChange={v => setBi("vision", "en", v)} />
+          <Field label="Vision (Telugu)" textarea value={c.vision?.te} onChange={v => setBi("vision", "te", v)} />
+        </div>
+      </Panel>
+
+      <Panel title="Why Choose Us">
+        <div className="space-y-3">
+          {(c.why_choose_us || []).map((w, i) => (
+            <div key={i} className="grid md:grid-cols-4 gap-3 p-3 rounded-xl border border-slate-100">
+              <Field label={`Title EN`} value={w.title?.en} onChange={v => setWhy(i, "title.en", v)} />
+              <Field label={`Title TE`} value={w.title?.te} onChange={v => setWhy(i, "title.te", v)} />
+              <Field label={`Desc EN`} value={w.desc?.en} onChange={v => setWhy(i, "desc.en", v)} />
+              <Field label={`Desc TE`} value={w.desc?.te} onChange={v => setWhy(i, "desc.te", v)} />
+            </div>
+          ))}
+        </div>
+      </Panel>
+
+      <Panel title="Contact Information">
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Phone" value={c.contact?.phone} onChange={v => setContact("phone", v)} />
+          <Field label="WhatsApp Number" value={c.contact?.whatsapp} onChange={v => setContact("whatsapp", v)} />
+          <Field label="Email" value={c.contact?.email} onChange={v => setContact("email", v)} />
+          <Field label="Working Hours (EN)" value={c.contact?.timings_en} onChange={v => setContact("timings_en", v)} />
+          <Field label="Working Hours (TE)" value={c.contact?.timings_te} onChange={v => setContact("timings_te", v)} />
+          <Field label="Address (EN)" textarea value={c.contact?.address_en} onChange={v => setContact("address_en", v)} />
+          <Field label="Address (TE)" textarea value={c.contact?.address_te} onChange={v => setContact("address_te", v)} />
+          <Field label="Google Maps Embed URL" textarea value={c.contact?.google_maps_embed} onChange={v => setContact("google_maps_embed", v)} className="md:col-span-2" />
+        </div>
+      </Panel>
+
+      <Panel title="AI Assistant Instructions">
+        <Field label="System prompt / info the AI knows" textarea value={c.ai_assistant_info} onChange={v => setC({ ...c, ai_assistant_info: v })} />
+      </Panel>
+
+      <Panel title="Meet Your Trainer">
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Name (EN)" value={c.trainer?.name?.en} onChange={v => setC({ ...c, trainer: { ...(c.trainer||{}), name: { ...(c.trainer?.name||{}), en: v } } })} />
+          <Field label="Name (TE)" value={c.trainer?.name?.te} onChange={v => setC({ ...c, trainer: { ...(c.trainer||{}), name: { ...(c.trainer?.name||{}), te: v } } })} />
+          <Field label="Title / Role (EN)" value={c.trainer?.title?.en} onChange={v => setC({ ...c, trainer: { ...(c.trainer||{}), title: { ...(c.trainer?.title||{}), en: v } } })} />
+          <Field label="Title / Role (TE)" value={c.trainer?.title?.te} onChange={v => setC({ ...c, trainer: { ...(c.trainer||{}), title: { ...(c.trainer?.title||{}), te: v } } })} />
+          <Field label="Photo URL" value={c.trainer?.photo_url} onChange={v => setC({ ...c, trainer: { ...(c.trainer||{}), photo_url: v } })} className="md:col-span-2" />
+          <Field label="Biography (EN)" textarea value={c.trainer?.bio?.en} onChange={v => setC({ ...c, trainer: { ...(c.trainer||{}), bio: { ...(c.trainer?.bio||{}), en: v } } })} />
+          <Field label="Biography (TE)" textarea value={c.trainer?.bio?.te} onChange={v => setC({ ...c, trainer: { ...(c.trainer||{}), bio: { ...(c.trainer?.bio||{}), te: v } } })} />
+          <Field label="Mission (EN)" textarea value={c.trainer?.mission?.en} onChange={v => setC({ ...c, trainer: { ...(c.trainer||{}), mission: { ...(c.trainer?.mission||{}), en: v } } })} />
+          <Field label="Mission (TE)" textarea value={c.trainer?.mission?.te} onChange={v => setC({ ...c, trainer: { ...(c.trainer||{}), mission: { ...(c.trainer?.mission||{}), te: v } } })} />
+        </div>
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Qualifications</div>
+            <button
+              type="button"
+              onClick={() => setC({ ...c, trainer: { ...(c.trainer||{}), qualifications: [...(c.trainer?.qualifications||[]), { en: "", te: "" }] } })}
+              className="text-xs font-semibold text-navy hover:text-gold inline-flex items-center gap-1"
+            >
+              <Plus className="w-3 h-3" /> Add
+            </button>
+          </div>
+          <div className="space-y-2">
+            {(c.trainer?.qualifications || []).map((q, i) => (
+              <div key={i} className="grid md:grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                <Field label={`#${i+1} EN`} value={q.en} onChange={v => {
+                  const qs = [...(c.trainer?.qualifications || [])]; qs[i] = { ...qs[i], en: v };
+                  setC({ ...c, trainer: { ...(c.trainer||{}), qualifications: qs } });
+                }} />
+                <Field label={`#${i+1} TE`} value={q.te} onChange={v => {
+                  const qs = [...(c.trainer?.qualifications || [])]; qs[i] = { ...qs[i], te: v };
+                  setC({ ...c, trainer: { ...(c.trainer||{}), qualifications: qs } });
+                }} />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const qs = (c.trainer?.qualifications || []).filter((_, j) => j !== i);
+                    setC({ ...c, trainer: { ...(c.trainer||{}), qualifications: qs } });
+                  }}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg self-center"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Panel>
+
+      <div className="sticky bottom-4 flex justify-end">
+        <button data-testid="content-save" onClick={save} disabled={busy} className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-navy text-white font-semibold shadow-lg hover:bg-gold hover:text-black transition-colors disabled:opacity-60">
+          {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Save Changes
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Panel({ title, children }) {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+      <h3 className="font-display font-bold text-navy text-lg mb-4">{title}</h3>
+      {children}
+    </div>
+  );
+}
+
+function CoursesTab({ onSaved }) {
+  const [list, setList] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const load = () => coursesApi.list().then(setList);
+  useEffect(() => { load(); }, []);
+
+  const update = (id, patch) => setList(l => l.map(c => c.id === id ? { ...c, ...patch } : c));
+
+  const saveOne = async (c) => {
+    try { await coursesApi.update(c.id, c); toast.success("Course updated"); onSaved?.(); }
+    catch { toast.error("Failed"); }
+  };
+  const removeOne = async (id) => {
+    if (!window.confirm("Delete this course?")) return;
+    await coursesApi.remove(id); load(); onSaved?.();
+  };
+  const addOne = async () => {
+    setBusy(true);
+    try {
+      await coursesApi.create({ title_en: "New Course", title_te: "కొత్త కోర్సు", desc_en: "", desc_te: "", image_url: "", fee: "", duration: "", order: list.length });
+      load(); onSaved?.();
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-bold text-2xl text-navy">Manage Courses</h3>
+        <button data-testid="course-add" onClick={addOne} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gold text-black font-semibold hover:bg-navy hover:text-white transition-colors">
+          <Plus className="w-4 h-4" /> Add Course
+        </button>
+      </div>
+      {list.map(c => (
+        <div key={c.id} className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="grid md:grid-cols-2 gap-4">
+            <Field label="Title (EN)" value={c.title_en} onChange={v => update(c.id, { title_en: v })} />
+            <Field label="Title (TE)" value={c.title_te} onChange={v => update(c.id, { title_te: v })} />
+            <Field label="Description (EN)" textarea value={c.desc_en} onChange={v => update(c.id, { desc_en: v })} />
+            <Field label="Description (TE)" textarea value={c.desc_te} onChange={v => update(c.id, { desc_te: v })} />
+            <Field label="Fee" value={c.fee} onChange={v => update(c.id, { fee: v })} />
+            <Field label="Duration" value={c.duration} onChange={v => update(c.id, { duration: v })} />
+            <Field label="Image URL" value={c.image_url} onChange={v => update(c.id, { image_url: v })} className="md:col-span-2" />
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <button onClick={() => removeOne(c.id)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50">
+              <Trash2 className="w-4 h-4" /> Delete
+            </button>
+            <button onClick={() => saveOne(c)} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-navy text-white text-sm font-semibold hover:bg-gold hover:text-black transition-colors">
+              <Save className="w-4 h-4" /> Save
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AdmissionsTab() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = () => { setLoading(true); admissionsApi.list().then(setItems).finally(() => setLoading(false)); };
+  useEffect(() => { load(); }, []);
+
+  const remove = async (id) => {
+    if (!window.confirm("Delete this admission?")) return;
+    await admissionsApi.remove(id); load();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-bold text-2xl text-navy">Admission Applications ({items.length})</h3>
+        <button onClick={load} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100">
+          <RefreshCw className="w-4 h-4" /> Refresh
+        </button>
+      </div>
+      {loading ? <Loader2 className="w-5 h-5 animate-spin" /> :
+        items.length === 0 ? <div className="text-sm text-slate-500 bg-white p-8 rounded-xl border">No admissions yet.</div> :
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {items.map(a => (
+            <div key={a.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex gap-4">
+              {a.photo_path ? (
+                <img src={admissionsApi.photoUrl(a.id)} alt={a.student_name} className="w-20 h-20 rounded-xl object-cover border border-slate-100" />
+              ) : (
+                <div className="w-20 h-20 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 text-xs">No Photo</div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="font-display font-bold text-navy truncate">{a.student_name}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{a.course}</div>
+                <div className="text-xs text-slate-600 mt-1">📞 {a.phone}</div>
+                {a.email && <div className="text-xs text-slate-600 truncate">✉ {a.email}</div>}
+                <div className="text-[10px] text-slate-400 mt-1">{new Date(a.created_at).toLocaleString()}</div>
+                <button onClick={() => remove(a.id)} className="mt-2 text-xs text-red-600 hover:underline inline-flex items-center gap-1">
+                  <Trash2 className="w-3 h-3" /> Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      }
+    </div>
+  );
+}
+
+function GalleryTab() {
+  const [items, setItems] = useState([]);
+  const [file, setFile] = useState(null);
+  const [caption, setCaption] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = () => galleryApi.list().then(setItems);
+  useEffect(() => { load(); }, []);
+
+  const upload = async () => {
+    if (!file) return toast.error("Choose a file first");
+    setBusy(true);
+    try {
+      await galleryApi.upload(file, caption);
+      toast.success("Uploaded");
+      setFile(null); setCaption(""); load();
+    } catch { toast.error("Upload failed"); }
+    finally { setBusy(false); }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm("Remove this image?")) return;
+    await galleryApi.remove(id); load();
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white rounded-2xl border border-slate-200 p-5">
+        <h3 className="font-display font-bold text-navy text-lg mb-4">Upload Image</h3>
+        <div className="grid md:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Image</label>
+            <input type="file" accept="image/*" onChange={e => setFile(e.target.files?.[0] || null)} className="text-sm" />
+          </div>
+          <Field label="Caption (optional)" value={caption} onChange={setCaption} />
+          <button onClick={upload} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-navy text-white font-semibold hover:bg-gold hover:text-black transition-colors disabled:opacity-60">
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {items.map(it => (
+          <div key={it.id} className="relative group rounded-2xl overflow-hidden border border-slate-200 aspect-square">
+            <img src={galleryApi.imageUrl(it.id)} alt={it.caption} className="w-full h-full object-cover" />
+            <button onClick={() => remove(it.id)} className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 bg-red-600 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-opacity">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

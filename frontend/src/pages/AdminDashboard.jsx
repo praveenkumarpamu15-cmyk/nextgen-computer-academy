@@ -178,6 +178,72 @@ function ContentTab({ onSaved }) {
         <Field label="System prompt / info the AI knows" textarea value={c.ai_assistant_info} onChange={v => setC({ ...c, ai_assistant_info: v })} />
       </Panel>
 
+      <Panel title="Homepage Stats (leave empty to hide — no fake data will be shown)">
+        <p className="text-sm text-slate-500 mb-3">These appear in the hero. Only add real, verifiable numbers.</p>
+        <div className="space-y-3">
+          {(c.stats || []).map((s, i) => (
+            <div key={i} className="grid md:grid-cols-[1fr_1.5fr_1.5fr_auto] gap-2 items-end">
+              <Field label={`Value #${i+1}`} value={s.value} onChange={v => {
+                const arr = [...(c.stats||[])]; arr[i] = { ...arr[i], value: v }; setC({ ...c, stats: arr });
+              }} />
+              <Field label="Label (EN)" value={s.label?.en} onChange={v => {
+                const arr = [...(c.stats||[])]; arr[i] = { ...arr[i], label: { ...(arr[i].label||{}), en: v } }; setC({ ...c, stats: arr });
+              }} />
+              <Field label="Label (TE)" value={s.label?.te} onChange={v => {
+                const arr = [...(c.stats||[])]; arr[i] = { ...arr[i], label: { ...(arr[i].label||{}), te: v } }; setC({ ...c, stats: arr });
+              }} />
+              <button type="button" onClick={() => {
+                const arr = (c.stats||[]).filter((_, j) => j !== i); setC({ ...c, stats: arr });
+              }} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          <button type="button" onClick={() => setC({ ...c, stats: [...(c.stats||[]), { value: "", label: { en: "", te: "" } }] })}
+            className="text-sm font-semibold text-navy hover:text-gold inline-flex items-center gap-1">
+            <Plus className="w-4 h-4" /> Add stat
+          </button>
+        </div>
+      </Panel>
+
+      <Panel title="Success Journey — Real Milestones (timeline)">
+        <p className="text-sm text-slate-500 mb-3">Add real milestones from the academy's journey. Leave empty and the section stays hidden.</p>
+        <div className="space-y-3">
+          {(c.success_journey || []).map((m, i) => (
+            <div key={i} className="p-4 rounded-xl border border-slate-100 relative">
+              <button type="button" onClick={() => {
+                const arr = (c.success_journey||[]).filter((_, j) => j !== i); setC({ ...c, success_journey: arr });
+              }} className="absolute top-3 right-3 p-1.5 text-red-600 hover:bg-red-50 rounded-lg">
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <div className="grid md:grid-cols-[120px_1fr_1fr] gap-3">
+                <Field label="Year / Date" value={m.year} onChange={v => {
+                  const arr = [...(c.success_journey||[])]; arr[i] = { ...arr[i], year: v }; setC({ ...c, success_journey: arr });
+                }} />
+                <Field label="Title (EN)" value={m.title?.en} onChange={v => {
+                  const arr = [...(c.success_journey||[])]; arr[i] = { ...arr[i], title: { ...(arr[i].title||{}), en: v } }; setC({ ...c, success_journey: arr });
+                }} />
+                <Field label="Title (TE)" value={m.title?.te} onChange={v => {
+                  const arr = [...(c.success_journey||[])]; arr[i] = { ...arr[i], title: { ...(arr[i].title||{}), te: v } }; setC({ ...c, success_journey: arr });
+                }} />
+              </div>
+              <div className="grid md:grid-cols-2 gap-3 mt-3">
+                <Field label="Description (EN)" textarea value={m.desc?.en} onChange={v => {
+                  const arr = [...(c.success_journey||[])]; arr[i] = { ...arr[i], desc: { ...(arr[i].desc||{}), en: v } }; setC({ ...c, success_journey: arr });
+                }} />
+                <Field label="Description (TE)" textarea value={m.desc?.te} onChange={v => {
+                  const arr = [...(c.success_journey||[])]; arr[i] = { ...arr[i], desc: { ...(arr[i].desc||{}), te: v } }; setC({ ...c, success_journey: arr });
+                }} />
+              </div>
+            </div>
+          ))}
+          <button type="button" onClick={() => setC({ ...c, success_journey: [...(c.success_journey||[]), { year: "", title: { en: "", te: "" }, desc: { en: "", te: "" } }] })}
+            className="text-sm font-semibold text-navy hover:text-gold inline-flex items-center gap-1">
+            <Plus className="w-4 h-4" /> Add milestone
+          </button>
+        </div>
+      </Panel>
+
       <Panel title="SEO — Search Engine Optimization">
         <div className="grid md:grid-cols-2 gap-4">
           <Field label="Site Title" value={c.seo?.site_title} onChange={v => setC({ ...c, seo: { ...(c.seo||{}), site_title: v } })} className="md:col-span-2" />
@@ -315,6 +381,10 @@ function CoursesTab({ onSaved }) {
               <ListEditor label="Syllabus Topics (TE)" items={c.syllabus_te || []} onChange={arr => update(c.id, { syllabus_te: arr })} />
               <ListEditor label="Learning Outcomes (EN)" items={c.outcomes_en || []} onChange={arr => update(c.id, { outcomes_en: arr })} />
               <ListEditor label="Learning Outcomes (TE)" items={c.outcomes_te || []} onChange={arr => update(c.id, { outcomes_te: arr })} />
+              <ListEditor label="Practical Projects (EN)" items={c.projects_en || []} onChange={arr => update(c.id, { projects_en: arr })} />
+              <ListEditor label="Practical Projects (TE)" items={c.projects_te || []} onChange={arr => update(c.id, { projects_te: arr })} />
+              <ListEditor label="Career Opportunities (EN)" items={c.career_en || []} onChange={arr => update(c.id, { career_en: arr })} />
+              <ListEditor label="Career Opportunities (TE)" items={c.career_te || []} onChange={arr => update(c.id, { career_te: arr })} />
             </div>
           </div>
           <div className="mt-4 flex justify-end gap-2">

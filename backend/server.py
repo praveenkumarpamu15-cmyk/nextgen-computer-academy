@@ -155,6 +155,8 @@ class SiteContent(BaseModel):
     owner_notification_whatsapp: str = ""
     notifications_enabled: bool = True
     enabled_notification_channels: List[str] = Field(default_factory=lambda: ["email"])
+    stats: List[Dict[str, Any]] = Field(default_factory=list)
+    success_journey: List[Dict[str, Any]] = Field(default_factory=list)
     seo: Dict[str, Any] = Field(default_factory=lambda: {
         "site_title": "NextGen Computer Academy — Learn Today. Lead Tomorrow.",
         "site_description": "Practical, bilingual (English + Telugu) computer training in your town. Courses: MS Office, Tally Prime, AI Tools, Typing, Career Skills. Small batches, individual attention, affordable fees.",
@@ -201,6 +203,10 @@ class CourseModel(BaseModel):
     outcomes_te: List[str] = Field(default_factory=list)
     prerequisites_en: str = ""
     prerequisites_te: str = ""
+    projects_en: List[str] = Field(default_factory=list)
+    projects_te: List[str] = Field(default_factory=list)
+    career_en: List[str] = Field(default_factory=list)
+    career_te: List[str] = Field(default_factory=list)
     order: int = 0
 
 def slugify(text: str) -> str:
@@ -253,52 +259,10 @@ DEFAULT_WHY = [
     {"title": {"en": "Career Guidance", "te": "కెరీర్ మార్గదర్శకత్వం"}, "desc": {"en": "Resume, interview and job-search support after your course.", "te": "కోర్సు తర్వాత రెజ్యూమ్, ఇంటర్వ్యూ, ఉద్యోగ శోధన సహాయం."}},
 ]
 
-DEFAULT_TESTIMONIALS = [
-    {
-        "name": "Sravani Devi",
-        "role": {"en": "Student, MS Excel", "te": "విద్యార్థి, MS ఎక్సెల్"},
-        "message": {
-            "en": "Before joining NextGen, I had never used a computer. Now I can prepare Excel reports and even help my father in his shop. The teachers explain everything in Telugu when I get stuck — that made all the difference.",
-            "te": "నెక్స్ట్‌జెన్‌లో చేరకముందు నేను ఎప్పుడూ కంప్యూటర్ ముట్టుకోలేదు. ఇప్పుడు నేను ఎక్సెల్ రిపోర్ట్‌లు తయారు చేయగలుగుతున్నాను, మా నాన్నకి షాప్ లెక్కల్లో సాయం చేస్తున్నాను. అర్థం కానప్పుడు తెలుగులో చెప్పడమే పెద్ద తేడా."
-        },
-        "rating": 5,
-        "photo_url": "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg",
-        "published": True,
-    },
-    {
-        "name": "Rajesh Kumar",
-        "role": {"en": "Tally Prime Graduate", "te": "టాలీ ప్రైమ్ గ్రాడ్యుయేట్"},
-        "message": {
-            "en": "The Tally Prime course was 100% practical. Within 2 months, I got a billing operator job at a local wholesale shop. Praveen sir helped me with my resume and interview prep too.",
-            "te": "టాలీ ప్రైమ్ కోర్సు పూర్తిగా ప్రాక్టికల్‌గా ఉంది. 2 నెలల్లోనే మా ఏరియా హోల్‌సేల్ షాప్‌లో బిల్లింగ్ ఆపరేటర్ ఉద్యోగం వచ్చింది. ప్రవీణ్ సర్ రెజ్యూమ్‌తో, ఇంటర్వ్యూ ప్రాక్టీస్‌తో కూడా సాయం చేశారు."
-        },
-        "rating": 5,
-        "photo_url": "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg",
-        "published": True,
-    },
-    {
-        "name": "Anitha Reddy",
-        "role": {"en": "Housewife → Freelancer", "te": "గృహిణి → ఫ్రీలాన్సర్"},
-        "message": {
-            "en": "I started with the AI Tools course out of curiosity. Now I use ChatGPT and image tools to earn small freelance projects from home. Never thought I could do this at 38!",
-            "te": "కుతూహలంతో AI టూల్స్ కోర్సు మొదలుపెట్టాను. ఇప్పుడు ChatGPT, ఇమేజ్ టూల్స్‌తో ఇంటి నుండే చిన్న ఫ్రీలాన్స్ ప్రాజెక్ట్‌లు చేసుకుంటున్నాను. 38 ఏళ్లకి ఇది సాధ్యం అని అనుకోలేదు!"
-        },
-        "rating": 5,
-        "photo_url": "https://images.pexels.com/photos/2379005/pexels-photo-2379005.jpeg",
-        "published": True,
-    },
-    {
-        "name": "Venkatesh N.",
-        "role": {"en": "Intermediate Student", "te": "ఇంటర్ విద్యార్థి"},
-        "message": {
-            "en": "Small batch size means the teacher actually knows my name and my speed. I was slow at typing but improved to 35 WPM in one month.",
-            "te": "చిన్న బ్యాచ్ కాబట్టి సర్‌కి నా పేరు, నా వేగం రెండూ తెలుసు. టైపింగ్‌లో నేను చాలా స్లోగా ఉండేవాడ్ని — ఒక నెలలో 35 WPM చేరుకున్నా."
-        },
-        "rating": 4,
-        "photo_url": "https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg",
-        "published": True,
-    },
-]
+DEFAULT_TESTIMONIALS = []  # No fake testimonials — owner adds real ones from admin panel
+
+# Names of previously-seeded fake testimonials that must be purged on startup
+_SEEDED_TESTIMONIAL_NAMES = ["Sravani Devi", "Rajesh Kumar", "Anitha Reddy", "Venkatesh N."]
 
 async def seed_defaults():
     # Admin
@@ -332,11 +296,10 @@ async def seed_defaults():
         async for course in db.courses.find({"$or": [{"slug": {"$exists": False}}, {"slug": ""}]}):
             slug = slugify(course.get("title_en", ""))
             await db.courses.update_one({"id": course["id"]}, {"$set": {"slug": slug}})
-    # Testimonials
-    if await db.testimonials.count_documents({}) == 0:
-        for i, t in enumerate(DEFAULT_TESTIMONIALS):
-            await db.testimonials.insert_one({**t, "id": str(uuid.uuid4()), "order": i, "created_at": datetime.now(timezone.utc).isoformat()})
-        logger.info("Seeded default testimonials")
+    # Testimonials — never seed fake data. Purge any previously-seeded demo testimonials.
+    purged = await db.testimonials.delete_many({"name": {"$in": _SEEDED_TESTIMONIAL_NAMES}})
+    if purged.deleted_count:
+        logger.info("Purged %d seeded demo testimonials", purged.deleted_count)
 
 # ─────────────────────────── Notifications (channel-based) ───────────────────────────
 # Provider registry — add new channels here in the future (e.g. WhatsApp Cloud API)

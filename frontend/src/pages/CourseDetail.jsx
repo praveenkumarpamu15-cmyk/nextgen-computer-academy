@@ -6,7 +6,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import FloatingWidgets from "@/components/FloatingWidgets";
 import SEO from "@/components/SEO";
-import { ArrowLeft, ArrowRight, Clock, IndianRupee, CheckCircle2, BookOpen, Target, ListChecks, Sparkles, GraduationCap } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, IndianRupee, CheckCircle2, BookOpen, Target, ListChecks, Sparkles, GraduationCap, Wrench, Briefcase } from "lucide-react";
 
 export default function CourseDetail() {
   const { key } = useParams();
@@ -54,6 +54,8 @@ export default function CourseDetail() {
   const prereq = lang === "te" ? course.prerequisites_te : course.prerequisites_en;
   const syllabus = lang === "te" ? (course.syllabus_te || []) : (course.syllabus_en || []);
   const outcomes = lang === "te" ? (course.outcomes_te || []) : (course.outcomes_en || []);
+  const projects = lang === "te" ? (course.projects_te || []) : (course.projects_en || []);
+  const careers = lang === "te" ? (course.career_te || []) : (course.career_en || []);
   const related = allCourses.filter(c => c.id !== course.id).slice(0, 3);
 
   const structured = {
@@ -211,6 +213,42 @@ export default function CourseDetail() {
                   </h2>
                   <div className="mt-3 w-12 h-1 bg-gold rounded-full" />
                   <p className={`mt-5 text-slate-700 leading-relaxed ${lang === "te" ? "font-te" : ""}`}>{prereq}</p>
+                </div>
+              )}
+
+              {projects.length > 0 && (
+                <div>
+                  <h2 className="font-display text-2xl sm:text-3xl font-bold text-navy tracking-tight flex items-center gap-2">
+                    <Wrench className="w-5 h-5 text-gold" /> {lang === "te" ? "ప్రాక్టికల్ ప్రాజెక్టులు" : "Practical Projects"}
+                  </h2>
+                  <div className="mt-3 w-12 h-1 bg-gold rounded-full" />
+                  <div className="mt-5 grid sm:grid-cols-2 gap-3">
+                    {projects.map((p, i) => (
+                      <div key={i} data-testid={`project-${i}`} className="flex items-start gap-3 p-4 rounded-xl bg-white border border-slate-100 hover:border-gold/40 transition-colors">
+                        <div className="w-8 h-8 rounded-lg bg-gold/15 text-gold flex items-center justify-center shrink-0">
+                          <Wrench className="w-4 h-4" />
+                        </div>
+                        <span className={`text-sm text-slate-700 font-medium leading-snug ${lang === "te" ? "font-te" : ""}`}>{p}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {careers.length > 0 && (
+                <div>
+                  <h2 className="font-display text-2xl sm:text-3xl font-bold text-navy tracking-tight flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-gold" /> {lang === "te" ? "కెరీర్ అవకాశాలు" : "Career Opportunities"}
+                  </h2>
+                  <div className="mt-3 w-12 h-1 bg-gold rounded-full" />
+                  <ul className="mt-5 space-y-2">
+                    {careers.map((c, i) => (
+                      <li key={i} data-testid={`career-${i}`} className="flex items-start gap-3 p-3 rounded-xl bg-cream border border-gold/20">
+                        <Briefcase className="w-5 h-5 text-gold shrink-0 mt-0.5" />
+                        <span className={`text-sm text-navy font-medium leading-snug ${lang === "te" ? "font-te" : ""}`}>{c}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>

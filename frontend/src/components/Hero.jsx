@@ -63,19 +63,19 @@ export default function Hero() {
             </button>
           </div>
 
-          <div className="mt-10 grid grid-cols-3 gap-4 max-w-xl">
-            {[
-              { icon: Users, label: lang === "te" ? "సంతోష విద్యార్థులు" : "Happy Students", val: "500+" },
-              { icon: Star, label: lang === "te" ? "కోర్సుల రేటింగ్" : "Course Rating", val: "4.9" },
-              { icon: Award, label: lang === "te" ? "సర్టిఫికెట్‌లు" : "Certifications", val: "9" },
-            ].map((s, i) => (
-              <div key={i} className="glass rounded-xl px-3 py-3 sm:px-4 sm:py-4">
-                <s.icon className="w-4 h-4 text-gold mb-2" />
-                <div className="font-display font-bold text-navy text-xl sm:text-2xl">{s.val}</div>
-                <div className={`text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-tight ${lang === "te" ? "font-te" : ""}`}>{s.label}</div>
-              </div>
-            ))}
-          </div>
+          {content?.stats?.length > 0 && (
+            <div className="mt-10 grid grid-cols-3 gap-4 max-w-xl">
+              {content.stats.slice(0, 3).map((s, i) => (
+                <div key={i} data-testid={`hero-stat-${i}`} className="glass rounded-xl px-3 py-3 sm:px-4 sm:py-4">
+                  <div className="w-2 h-2 rounded-full bg-gold mb-2" />
+                  <div className="font-display font-bold text-navy text-xl sm:text-2xl">{s.value}</div>
+                  <div className={`text-[11px] sm:text-xs text-slate-500 mt-0.5 leading-tight ${lang === "te" ? "font-te" : ""}`}>
+                    {(s.label && (s.label[lang] || s.label.en)) || ""}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-5 relative animate-fade-up" style={{ animationDelay: "0.15s" }}>

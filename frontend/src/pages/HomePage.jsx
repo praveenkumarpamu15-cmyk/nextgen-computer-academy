@@ -5,6 +5,7 @@ import { About, WhyChooseUs, Vision, Contact } from "@/components/Sections";
 import Courses from "@/components/Courses";
 import Trainer from "@/components/Trainer";
 import Testimonials from "@/components/Testimonials";
+import SuccessJourney from "@/components/SuccessJourney";
 import AdmissionForm from "@/components/AdmissionForm";
 import Gallery from "@/components/Gallery";
 import Footer from "@/components/Footer";
@@ -35,6 +36,7 @@ export default function HomePage() {
         <Trainer />
         <WhyChooseUs />
         <Vision />
+        <SuccessJourney />
         <Testimonials />
         <Gallery />
         <AdmissionForm />

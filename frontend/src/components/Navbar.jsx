@@ -10,6 +10,7 @@ const NAV = [
   { id: "trainer", en: "Trainer", te: "ట్రైనర్" },
   { id: "why", en: "Why Us", te: "ఎందుకు మేము" },
   { id: "vision", en: "Vision", te: "లక్ష్యం" },
+  { id: "journey", en: "Journey", te: "ప్రయాణం" },
   { id: "testimonials", en: "Reviews", te: "సమీక్షలు" },
   { id: "gallery", en: "Gallery", te: "గ్యాలరీ" },
   { id: "admission", en: "Admission", te: "అడ్మిషన్" },
@@ -20,6 +21,7 @@ export default function Navbar() {
   const { lang, toggleLang, content, t } = useApp();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [hasTestimonials, setHasTestimonials] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -28,6 +30,21 @@ export default function Navbar() {
     window.addEventListener("scroll", on);
     return () => window.removeEventListener("scroll", on);
   }, []);
+
+  useEffect(() => {
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/api/testimonials`)
+      .then(r => r.json())
+      .then(d => setHasTestimonials(Array.isArray(d) && d.length > 0))
+      .catch(() => setHasTestimonials(false));
+  }, []);
+
+  const hasJourney = (content?.success_journey || []).length > 0;
+
+  const navItems = NAV.filter(n => {
+    if (n.id === "journey") return hasJourney;
+    if (n.id === "testimonials") return hasTestimonials;
+    return true;
+  });
 
   const jump = (id) => {
     setOpen(false);
@@ -67,7 +84,7 @@ export default function Navbar() {
         </button>
 
         <nav className="hidden lg:flex items-center gap-1">
-          {NAV.map(n => (
+          {navItems.map(n => (
             <button
               key={n.id}
               data-testid={`nav-${n.id}`}
@@ -109,7 +126,7 @@ export default function Navbar() {
       {open && (
         <div data-testid="nav-mobile-menu" className="mx-3 sm:mx-6 mt-2 glass rounded-2xl p-3 lg:hidden animate-fade-up">
           <div className="grid grid-cols-2 gap-1">
-            {NAV.map(n => (
+            {navItems.map(n => (
               <button
                 key={n.id}
                 onClick={() => jump(n.id)}

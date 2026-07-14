@@ -38,3 +38,11 @@ Build a premium production-ready bilingual (English + Telugu) website for NextGe
 - **Bulk admissions export** — CSV (UTF-8 BOM so Excel opens Telugu correctly) and native XLSX. Downloaded via query-param JWT auth. Buttons + search filter in Admissions tab.
 - **SEO — complete** — react-helmet-async per-page meta management; `/api/sitemap.xml` (dynamic from courses + section anchors); `/api/robots.txt`; Open Graph + Twitter Card tags; EducationalOrganization structured data (site-wide) + Course structured data (per detail page); canonical URLs; owner-editable SEO fields (title, description, keywords, OG image, canonical URL, Twitter handle) in admin panel.
 - **Notification channel abstraction** — refactored `dispatch_admission_notification()` iterates `NOTIFICATION_CHANNELS` registry. Email channel active (still optional / no-ops without RESEND_API_KEY). WhatsApp channel stubbed and disabled — enabling later just needs setting `WHATSAPP_ACCESS_TOKEN` env + filling in the send helper; admission flow needs zero changes.
+
+## Truthfulness Update (2026-07-14 · Session 3)
+- **Removed all fake data from the public site.** Hero no longer shows "500+ Happy Students / 4.9 Rating / 9 Certifications". Testimonials seed removed; 4 previously-seeded fake testimonials permanently purged on backend startup.
+- **Homepage Stats (owner-editable)** — new `stats` field in site content. Empty by default. Renders in hero only when owner adds real numbers via admin.
+- **Success Journey section** — new timeline component on homepage. Rendered ONLY when owner adds milestones (year + bilingual title/description). No fake data.
+- **Course editor extended** — added Practical Projects (bilingual) and Career Opportunities (bilingual) fields to every course. Full 8-field bilingual editor: title, short desc, long desc, syllabus, outcomes, prerequisites, projects, career opportunities + fee, duration, image URL, URL slug.
+- **Course detail page** — now displays Practical Projects and Career Opportunities sections when populated.
+- **Adaptive Navbar** — hides "Journey" and "Reviews" links until real content is added.

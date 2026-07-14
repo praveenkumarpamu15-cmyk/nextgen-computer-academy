@@ -33,11 +33,12 @@ Set each one for **Production**, **Preview** and **Development** as needed.
 | `RESEND_API_KEY` | optional | `re_…` — leave empty to disable emails |
 | `SENDER_EMAIL` | optional | `onboarding@resend.dev` for testing |
 | `PIP_EXTRA_INDEX_URL` | **✅ (build-time)** | `https://d33sy5i8bnduwe.cloudfront.net/simple/` |
+| `UV_EXTRA_INDEX_URL` | **✅ (build-time)** | `https://d33sy5i8bnduwe.cloudfront.net/simple/` (same value — Vercel's new Python builder uses `uv`) |
 | `REACT_APP_BACKEND_URL` | ✅ (build-time) | leave **empty string** so the frontend calls `/api/...` on the same origin |
 
-> **Why `PIP_EXTRA_INDEX_URL`?**
+> **Why both `PIP_EXTRA_INDEX_URL` and `UV_EXTRA_INDEX_URL`?**
 > `emergentintegrations` lives on Emergent's private PyPI mirror.
-> Vercel's Python builder honours this env variable during `pip install`.
+> Vercel's Python builder has migrated to `uv` (a Rust-based package manager) which reads `UV_EXTRA_INDEX_URL`, but keep `PIP_EXTRA_INDEX_URL` set too as a fallback for older builder versions.
 
 ---
 

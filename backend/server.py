@@ -4,13 +4,14 @@ from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-import os, uuid, logging, requests, bcrypt, jwt
+import os, uuid, logging, requests, bcrypt, jwt, asyncio
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timezone, timedelta
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
+import resend
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -23,6 +24,30 @@ APP_NAME = os.environ.get('APP_NAME', 'nextgen-academy')
 ADMIN_EMAIL = os.environ['ADMIN_EMAIL']
 ADMIN_PASSWORD = os.environ['ADMIN_PASSWORD']
 STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
+
+# Email (Resend) — optional
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "").strip()
+SENDER_EMAIL = os.environ.get("SENDER_EMAIL", "onboarding@resend.dev").strip()
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+
+def email_enabled() -> bool:
+    return bool(RESEND_API_KEY)
+
+async def send_email_async(to: str, subject: str, html: str) -> None:
+    """Fire-and-forget email send. Silently no-ops if provider not configured."""
+    if not email_enabled():
+        logger.info("Email skipped (RESEND_API_KEY not set): %s", subject)
+        return
+    if not to:
+        logger.info("Email skipped (no recipient): %s", subject)
+        return
+    try:
+        params = {"from": SENDER_EMAIL, "to": [to], "subject": subject, "html": html}
+        result = await asyncio.to_thread(resend.Emails.send, params)
+        logger.info("Email sent id=%s to=%s", (result or {}).get("id"), to)
+    except Exception as e:
+        logger.error("Email send failed to=%s: %s", to, e)
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[DB_NAME]
@@ -125,6 +150,8 @@ class SiteContent(BaseModel):
     logo_url: str = ""
     contact: ContactInfo = Field(default_factory=ContactInfo)
     ai_assistant_info: str = "You are NextGen AI Assistant. Help visitors with courses, fees, admissions, timings and general questions about the academy in a friendly, warm tone."
+    owner_notification_email: str = ""
+    notifications_enabled: bool = True
     trainer: Dict[str, Any] = Field(default_factory=lambda: {
         "name": {"en": "Praveen Kumar", "te": "ప్రవీణ్ కుమార్"},
         "title": {"en": "Founder & Lead Trainer", "te": "వ్యవస్థాపకుడు & ప్రధాన శిక్షకుడు"},
@@ -246,6 +273,28 @@ async def login(body: LoginIn):
 async def me(email: str = Depends(require_admin)):
     return {"email": email}
 
+@api_router.get("/notifications/status")
+async def notifications_status(_: str = Depends(require_admin)):
+    cfg = await db.site_content.find_one({"_id": "singleton"}) or {}
+    return {
+        "email_provider_configured": email_enabled(),
+        "sender_email": SENDER_EMAIL if email_enabled() else None,
+        "owner_notification_email": (cfg.get("owner_notification_email") or ""),
+        "notifications_enabled": cfg.get("notifications_enabled", True),
+    }
+
+@api_router.post("/notifications/test")
+async def notifications_test(_: str = Depends(require_admin)):
+    cfg = await db.site_content.find_one({"_id": "singleton"}) or {}
+    to_email = (cfg.get("owner_notification_email") or "").strip()
+    if not email_enabled():
+        raise HTTPException(400, "Email provider not configured. Set RESEND_API_KEY in backend .env")
+    if not to_email:
+        raise HTTPException(400, "No owner_notification_email set. Configure it in the admin panel.")
+    html = "<p>This is a test notification from <b>NextGen Computer Academy</b>. If you received this, your admission alerts are working. ✅</p>"
+    await send_email_async(to_email, "Test — NextGen Admission Notifications", html)
+    return {"ok": True, "sent_to": to_email}
+
 # Content
 def _clean(doc):
     if not doc:
@@ -316,6 +365,39 @@ async def create_admission(
         "status": "new"
     }
     await db.admissions.insert_one(doc)
+
+    # Fire-and-forget owner email notification (never blocks the response)
+    try:
+        cfg = await db.site_content.find_one({"_id": "singleton"}) or {}
+        to_email = (cfg.get("owner_notification_email") or "").strip()
+        if to_email and cfg.get("notifications_enabled", True):
+            subject = f"New Admission — {student_name} ({course})"
+            html = f"""
+            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+              <div style="background:#0A2342;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0">
+                <h2 style="margin:0;font-family:Arial,sans-serif">New Admission Received</h2>
+                <p style="margin:6px 0 0;color:#C9A227;font-size:12px;letter-spacing:2px">NEXTGEN COMPUTER ACADEMY</p>
+              </div>
+              <div style="background:#fff;border:1px solid #eee;border-top:0;padding:24px;border-radius:0 0 12px 12px">
+                <table style="width:100%;font-size:14px;color:#1E293B;border-collapse:collapse">
+                  <tr><td style="padding:6px 0;color:#475569;width:160px">Student Name</td><td style="padding:6px 0;font-weight:600">{student_name}</td></tr>
+                  <tr><td style="padding:6px 0;color:#475569">Father / Mother</td><td style="padding:6px 0">{father_name} / {mother_name}</td></tr>
+                  <tr><td style="padding:6px 0;color:#475569">Date of Birth</td><td style="padding:6px 0">{dob}</td></tr>
+                  <tr><td style="padding:6px 0;color:#475569">Gender</td><td style="padding:6px 0">{gender}</td></tr>
+                  <tr><td style="padding:6px 0;color:#475569">Qualification</td><td style="padding:6px 0">{qualification}</td></tr>
+                  <tr><td style="padding:6px 0;color:#475569">Course</td><td style="padding:6px 0;font-weight:600;color:#0A2342">{course}</td></tr>
+                  <tr><td style="padding:6px 0;color:#475569">Phone</td><td style="padding:6px 0">{phone}{(' / ' + alt_phone) if alt_phone else ''}</td></tr>
+                  <tr><td style="padding:6px 0;color:#475569">Email</td><td style="padding:6px 0">{email or '—'}</td></tr>
+                  <tr><td style="padding:6px 0;color:#475569;vertical-align:top">Address</td><td style="padding:6px 0">{address}</td></tr>
+                </table>
+                <p style="margin:20px 0 0;font-size:12px;color:#64748b">Received at {datetime.now(timezone.utc).isoformat()}. Open the admin panel to view the student photo.</p>
+              </div>
+            </div>
+            """
+            asyncio.create_task(send_email_async(to_email, subject, html))
+    except Exception as e:
+        logger.error("Failed to schedule admission email: %s", e)
+
     return {"ok": True, "id": aid, "message": "Admission received"}
 
 @api_router.get("/admissions")

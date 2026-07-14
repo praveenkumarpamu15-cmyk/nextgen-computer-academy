@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { LogOut, Save, Trash2, Upload, Plus, ExternalLink, RefreshCw, Loader2, Users, BookOpen, Settings, Image as ImageIcon, GraduationCap } from "lucide-react";
-import { authApi, contentApi, coursesApi, admissionsApi, galleryApi } from "@/lib/api";
+import { LogOut, Save, Trash2, Upload, Plus, ExternalLink, RefreshCw, Loader2, Users, BookOpen, Settings, Image as ImageIcon, GraduationCap, Bell, Send, AlertCircle, CheckCircle2 } from "lucide-react";
+import api, { authApi, contentApi, coursesApi, admissionsApi, galleryApi } from "@/lib/api";
 import { useApp } from "@/context/AppContext";
 
 const TABS = [
@@ -10,6 +10,7 @@ const TABS = [
   { key: "courses", label: "Courses", icon: BookOpen },
   { key: "admissions", label: "Admissions", icon: Users },
   { key: "gallery", label: "Gallery", icon: ImageIcon },
+  { key: "notifications", label: "Notifications", icon: Bell },
 ];
 
 export default function AdminDashboard() {
@@ -75,6 +76,7 @@ export default function AdminDashboard() {
           {tab === "courses" && <CoursesTab onSaved={refresh} />}
           {tab === "admissions" && <AdmissionsTab />}
           {tab === "gallery" && <GalleryTab />}
+          {tab === "notifications" && <NotificationsTab />}
         </main>
       </div>
     </div>
@@ -400,6 +402,123 @@ function GalleryTab() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+
+function NotificationsTab() {
+  const [status, setStatus] = useState(null);
+  const [content, setContent] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  const load = async () => {
+    const [s, c] = await Promise.all([
+      api.get("/notifications/status").then(r => r.data),
+      contentApi.get(),
+    ]);
+    setStatus(s); setContent(c);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    if (!content) return;
+    setBusy(true);
+    try {
+      await contentApi.update({
+        owner_notification_email: content.owner_notification_email || "",
+        notifications_enabled: !!content.notifications_enabled,
+      });
+      toast.success("Notification settings saved");
+      await load();
+    } catch { toast.error("Save failed"); }
+    finally { setBusy(false); }
+  };
+
+  const sendTest = async () => {
+    setTesting(true);
+    try {
+      const { data } = await api.post("/notifications/test");
+      toast.success(`Test email sent to ${data.sent_to}`);
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Test failed");
+    } finally { setTesting(false); }
+  };
+
+  if (!status || !content) return <Loader2 className="w-5 h-5 animate-spin" />;
+
+  const providerOk = status.email_provider_configured;
+
+  return (
+    <div className="space-y-6">
+      <Panel title="Admission Email Notifications">
+        <div className={`flex items-start gap-3 p-4 rounded-xl border ${providerOk ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"}`}>
+          {providerOk ? <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" /> : <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />}
+          <div className="text-sm">
+            <div className="font-semibold text-navy">
+              {providerOk ? "Email provider ready" : "Email provider not configured"}
+            </div>
+            <div className="mt-0.5 text-slate-600">
+              {providerOk
+                ? <>Sender: <span className="font-mono text-xs bg-white px-1.5 py-0.5 rounded border">{status.sender_email}</span></>
+                : <>Set <span className="font-mono text-xs bg-white px-1.5 py-0.5 rounded border">RESEND_API_KEY</span> in <span className="font-mono text-xs">/app/backend/.env</span> to enable email notifications. Get a free key at <a href="https://resend.com" target="_blank" rel="noreferrer" className="text-navy underline">resend.com</a>.</>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid md:grid-cols-2 gap-4">
+          <Field
+            label="Owner Notification Email"
+            value={content.owner_notification_email}
+            onChange={v => setContent({ ...content, owner_notification_email: v })}
+          />
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Enable Notifications</label>
+            <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 cursor-pointer bg-white">
+              <input
+                type="checkbox"
+                data-testid="notif-enabled"
+                checked={!!content.notifications_enabled}
+                onChange={e => setContent({ ...content, notifications_enabled: e.target.checked })}
+                className="w-4 h-4"
+              />
+              <span className="text-sm text-slate-700">Send email to owner on every new admission</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-2 justify-end">
+          <button
+            data-testid="notif-test-btn"
+            onClick={sendTest}
+            disabled={testing || !providerOk || !content.owner_notification_email}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-navy/20 text-navy font-semibold text-sm hover:border-gold hover:text-gold transition-colors disabled:opacity-50"
+          >
+            {testing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Send Test Email
+          </button>
+          <button
+            data-testid="notif-save-btn"
+            onClick={save}
+            disabled={busy}
+            className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-navy text-white font-semibold text-sm hover:bg-gold hover:text-black transition-colors disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save Settings
+          </button>
+        </div>
+      </Panel>
+
+      <Panel title="How it works">
+        <ul className="text-sm text-slate-600 space-y-2 list-disc pl-5">
+          <li>Every time a student submits the online admission form, an email summary is sent to the owner notification email above.</li>
+          <li>The system works normally even without an API key — emails are simply skipped and logged. Your website, admin panel and database are never blocked by missing email configuration.</li>
+          <li>To enable emails: add <span className="font-mono text-xs">RESEND_API_KEY=re_xxx</span> to <span className="font-mono text-xs">/app/backend/.env</span>, then restart the backend.</li>
+          <li>Sender domain <span className="font-mono text-xs">onboarding@resend.dev</span> works out of the box in Resend test mode. For production, verify your own domain in the Resend dashboard.</li>
+        </ul>
+      </Panel>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { useApp } from "@/context/AppContext";
 const TABS = [
   { key: "content", label: "Site Content", icon: Settings },
   { key: "courses", label: "Courses", icon: BookOpen },
+  { key: "testimonials", label: "Testimonials", icon: MessageSquare },
   { key: "admissions", label: "Admissions", icon: Users },
   { key: "demos", label: "Demo Bookings", icon: Calendar },
   { key: "gallery", label: "Gallery", icon: ImageIcon },

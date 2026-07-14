@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Menu, X, GraduationCap, Languages } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 
 const NAV = [
@@ -9,6 +10,7 @@ const NAV = [
   { id: "trainer", en: "Trainer", te: "ట్రైనర్" },
   { id: "why", en: "Why Us", te: "ఎందుకు మేము" },
   { id: "vision", en: "Vision", te: "లక్ష్యం" },
+  { id: "testimonials", en: "Reviews", te: "సమీక్షలు" },
   { id: "gallery", en: "Gallery", te: "గ్యాలరీ" },
   { id: "admission", en: "Admission", te: "అడ్మిషన్" },
   { id: "contact", en: "Contact", te: "సంప్రదించండి" },
@@ -18,6 +20,8 @@ export default function Navbar() {
   const { lang, toggleLang, content, t } = useApp();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 20);
@@ -27,6 +31,10 @@ export default function Navbar() {
 
   const jump = (id) => {
     setOpen(false);
+    if (location.pathname !== "/") {
+      navigate(`/#${id}`);
+      return;
+    }
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   };

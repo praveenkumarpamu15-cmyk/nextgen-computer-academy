@@ -4,10 +4,12 @@ import Hero from "@/components/Hero";
 import { About, WhyChooseUs, Vision, Contact } from "@/components/Sections";
 import Courses from "@/components/Courses";
 import Trainer from "@/components/Trainer";
+import Testimonials from "@/components/Testimonials";
 import AdmissionForm from "@/components/AdmissionForm";
 import Gallery from "@/components/Gallery";
 import Footer from "@/components/Footer";
 import FloatingWidgets from "@/components/FloatingWidgets";
+import SEO from "@/components/SEO";
 import { useApp } from "@/context/AppContext";
 
 export default function HomePage() {
@@ -24,6 +26,7 @@ export default function HomePage() {
 
   return (
     <div data-testid="home-page" className="min-h-screen bg-white">
+      <SEO path="/" />
       <Navbar />
       <main>
         <Hero />
@@ -32,6 +35,7 @@ export default function HomePage() {
         <Trainer />
         <WhyChooseUs />
         <Vision />
+        <Testimonials />
         <Gallery />
         <AdmissionForm />
         <Contact />

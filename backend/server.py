@@ -4,7 +4,7 @@ from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-import os, uuid, logging, requests, bcrypt, jwt, asyncio
+import os, uuid, logging, requests, bcrypt, jwt, asyncio, io, csv, re
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import Optional, List, Dict, Any
@@ -12,6 +12,7 @@ from datetime import datetime, timezone, timedelta
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone
 import resend
+from openpyxl import Workbook
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -151,7 +152,17 @@ class SiteContent(BaseModel):
     contact: ContactInfo = Field(default_factory=ContactInfo)
     ai_assistant_info: str = "You are NextGen AI Assistant. Help visitors with courses, fees, admissions, timings and general questions about the academy in a friendly, warm tone."
     owner_notification_email: str = ""
+    owner_notification_whatsapp: str = ""
     notifications_enabled: bool = True
+    enabled_notification_channels: List[str] = Field(default_factory=lambda: ["email"])
+    seo: Dict[str, Any] = Field(default_factory=lambda: {
+        "site_title": "NextGen Computer Academy — Learn Today. Lead Tomorrow.",
+        "site_description": "Practical, bilingual (English + Telugu) computer training in your town. Courses: MS Office, Tally Prime, AI Tools, Typing, Career Skills. Small batches, individual attention, affordable fees.",
+        "site_keywords": "computer academy, Tally Prime, MS Office, AI Tools, Telugu computer training, career skills, typing course, computer basics",
+        "og_image": "https://images.pexels.com/photos/5530447/pexels-photo-5530447.jpeg",
+        "canonical_url": "",
+        "twitter_handle": "",
+    })
     trainer: Dict[str, Any] = Field(default_factory=lambda: {
         "name": {"en": "Praveen Kumar", "te": "ప్రవీణ్ కుమార్"},
         "title": {"en": "Founder & Lead Trainer", "te": "వ్యవస్థాపకుడు & ప్రధాన శిక్షకుడు"},
@@ -174,14 +185,27 @@ class SiteContent(BaseModel):
 
 class CourseModel(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    slug: str = ""
     title_en: str
     title_te: str
     desc_en: str
     desc_te: str
+    long_desc_en: str = ""
+    long_desc_te: str = ""
     image_url: str = ""
     fee: str = ""
     duration: str = ""
+    syllabus_en: List[str] = Field(default_factory=list)
+    syllabus_te: List[str] = Field(default_factory=list)
+    outcomes_en: List[str] = Field(default_factory=list)
+    outcomes_te: List[str] = Field(default_factory=list)
+    prerequisites_en: str = ""
+    prerequisites_te: str = ""
     order: int = 0
+
+def slugify(text: str) -> str:
+    s = re.sub(r"[^a-zA-Z0-9]+", "-", (text or "").lower()).strip("-")
+    return s or str(uuid.uuid4())[:8]
 
 class AdmissionIn(BaseModel):
     student_name: str
@@ -229,6 +253,53 @@ DEFAULT_WHY = [
     {"title": {"en": "Career Guidance", "te": "కెరీర్ మార్గదర్శకత్వం"}, "desc": {"en": "Resume, interview and job-search support after your course.", "te": "కోర్సు తర్వాత రెజ్యూమ్, ఇంటర్వ్యూ, ఉద్యోగ శోధన సహాయం."}},
 ]
 
+DEFAULT_TESTIMONIALS = [
+    {
+        "name": "Sravani Devi",
+        "role": {"en": "Student, MS Excel", "te": "విద్యార్థి, MS ఎక్సెల్"},
+        "message": {
+            "en": "Before joining NextGen, I had never used a computer. Now I can prepare Excel reports and even help my father in his shop. The teachers explain everything in Telugu when I get stuck — that made all the difference.",
+            "te": "నెక్స్ట్‌జెన్‌లో చేరకముందు నేను ఎప్పుడూ కంప్యూటర్ ముట్టుకోలేదు. ఇప్పుడు నేను ఎక్సెల్ రిపోర్ట్‌లు తయారు చేయగలుగుతున్నాను, మా నాన్నకి షాప్ లెక్కల్లో సాయం చేస్తున్నాను. అర్థం కానప్పుడు తెలుగులో చెప్పడమే పెద్ద తేడా."
+        },
+        "rating": 5,
+        "photo_url": "https://images.pexels.com/photos/1181686/pexels-photo-1181686.jpeg",
+        "published": True,
+    },
+    {
+        "name": "Rajesh Kumar",
+        "role": {"en": "Tally Prime Graduate", "te": "టాలీ ప్రైమ్ గ్రాడ్యుయేట్"},
+        "message": {
+            "en": "The Tally Prime course was 100% practical. Within 2 months, I got a billing operator job at a local wholesale shop. Praveen sir helped me with my resume and interview prep too.",
+            "te": "టాలీ ప్రైమ్ కోర్సు పూర్తిగా ప్రాక్టికల్‌గా ఉంది. 2 నెలల్లోనే మా ఏరియా హోల్‌సేల్ షాప్‌లో బిల్లింగ్ ఆపరేటర్ ఉద్యోగం వచ్చింది. ప్రవీణ్ సర్ రెజ్యూమ్‌తో, ఇంటర్వ్యూ ప్రాక్టీస్‌తో కూడా సాయం చేశారు."
+        },
+        "rating": 5,
+        "photo_url": "https://images.pexels.com/photos/220453/pexels-photo-220453.jpeg",
+        "published": True,
+    },
+    {
+        "name": "Anitha Reddy",
+        "role": {"en": "Housewife → Freelancer", "te": "గృహిణి → ఫ్రీలాన్సర్"},
+        "message": {
+            "en": "I started with the AI Tools course out of curiosity. Now I use ChatGPT and image tools to earn small freelance projects from home. Never thought I could do this at 38!",
+            "te": "కుతూహలంతో AI టూల్స్ కోర్సు మొదలుపెట్టాను. ఇప్పుడు ChatGPT, ఇమేజ్ టూల్స్‌తో ఇంటి నుండే చిన్న ఫ్రీలాన్స్ ప్రాజెక్ట్‌లు చేసుకుంటున్నాను. 38 ఏళ్లకి ఇది సాధ్యం అని అనుకోలేదు!"
+        },
+        "rating": 5,
+        "photo_url": "https://images.pexels.com/photos/2379005/pexels-photo-2379005.jpeg",
+        "published": True,
+    },
+    {
+        "name": "Venkatesh N.",
+        "role": {"en": "Intermediate Student", "te": "ఇంటర్ విద్యార్థి"},
+        "message": {
+            "en": "Small batch size means the teacher actually knows my name and my speed. I was slow at typing but improved to 35 WPM in one month.",
+            "te": "చిన్న బ్యాచ్ కాబట్టి సర్‌కి నా పేరు, నా వేగం రెండూ తెలుసు. టైపింగ్‌లో నేను చాలా స్లోగా ఉండేవాడ్ని — ఒక నెలలో 35 WPM చేరుకున్నా."
+        },
+        "rating": 4,
+        "photo_url": "https://images.pexels.com/photos/1043471/pexels-photo-1043471.jpeg",
+        "published": True,
+    },
+]
+
 async def seed_defaults():
     # Admin
     existing = await db.admin_users.find_one({"email": ADMIN_EMAIL})
@@ -253,9 +324,94 @@ async def seed_defaults():
     # Courses
     if await db.courses.count_documents({}) == 0:
         for i, c in enumerate(DEFAULT_COURSES):
-            doc = {**c, "id": str(uuid.uuid4()), "order": i}
+            doc = {**c, "id": str(uuid.uuid4()), "order": i, "slug": slugify(c["title_en"])}
             await db.courses.insert_one(doc)
         logger.info("Seeded default courses")
+    else:
+        # Backfill slugs for existing courses that don't have one
+        async for course in db.courses.find({"$or": [{"slug": {"$exists": False}}, {"slug": ""}]}):
+            slug = slugify(course.get("title_en", ""))
+            await db.courses.update_one({"id": course["id"]}, {"$set": {"slug": slug}})
+    # Testimonials
+    if await db.testimonials.count_documents({}) == 0:
+        for i, t in enumerate(DEFAULT_TESTIMONIALS):
+            await db.testimonials.insert_one({**t, "id": str(uuid.uuid4()), "order": i, "created_at": datetime.now(timezone.utc).isoformat()})
+        logger.info("Seeded default testimonials")
+
+# ─────────────────────────── Notifications (channel-based) ───────────────────────────
+# Provider registry — add new channels here in the future (e.g. WhatsApp Cloud API)
+# without touching the admission handler. Each channel is a plain async function
+# (recipient: str, subject: str, html: str) -> None that gracefully no-ops
+# when its API key is not configured.
+
+async def _channel_email(recipient: str, subject: str, html: str) -> None:
+    await send_email_async(recipient, subject, html)
+
+async def _channel_whatsapp(recipient: str, subject: str, html: str) -> None:
+    """Placeholder — WhatsApp Cloud API integration goes here.
+    Reads WHATSAPP_ACCESS_TOKEN / WHATSAPP_PHONE_ID from env when ready.
+    Currently disabled: no-ops silently so enabling it later requires zero
+    changes to the admission flow."""
+    if not os.environ.get("WHATSAPP_ACCESS_TOKEN"):
+        return
+    logger.info("WhatsApp channel: recipient=%s subject=%s (impl deferred)", recipient, subject)
+
+NOTIFICATION_CHANNELS = {
+    "email": {
+        "send": _channel_email,
+        "recipient_key": "owner_notification_email",
+        "provider_configured": lambda: email_enabled(),
+    },
+    "whatsapp": {
+        "send": _channel_whatsapp,
+        "recipient_key": "owner_notification_whatsapp",
+        "provider_configured": lambda: bool(os.environ.get("WHATSAPP_ACCESS_TOKEN")),
+    },
+}
+
+async def dispatch_admission_notification(admission: Dict[str, Any]) -> None:
+    """Fire-and-forget dispatch across every enabled channel. Never raises."""
+    try:
+        cfg = await db.site_content.find_one({"_id": "singleton"}) or {}
+        if not cfg.get("notifications_enabled", True):
+            return
+        subject = f"New Admission — {admission.get('student_name')} ({admission.get('course')})"
+        html = _admission_email_html(admission)
+        enabled_channels = cfg.get("enabled_notification_channels") or ["email"]
+        for name in enabled_channels:
+            ch = NOTIFICATION_CHANNELS.get(name)
+            if not ch:
+                continue
+            to = (cfg.get(ch["recipient_key"]) or "").strip()
+            if not to:
+                continue
+            asyncio.create_task(ch["send"](to, subject, html))
+    except Exception as e:
+        logger.error("dispatch_admission_notification failed: %s", e)
+
+def _admission_email_html(a: Dict[str, Any]) -> str:
+    return f"""
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+      <div style="background:#0A2342;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0">
+        <h2 style="margin:0;font-family:Arial,sans-serif">New Admission Received</h2>
+        <p style="margin:6px 0 0;color:#C9A227;font-size:12px;letter-spacing:2px">NEXTGEN COMPUTER ACADEMY</p>
+      </div>
+      <div style="background:#fff;border:1px solid #eee;border-top:0;padding:24px;border-radius:0 0 12px 12px">
+        <table style="width:100%;font-size:14px;color:#1E293B;border-collapse:collapse">
+          <tr><td style="padding:6px 0;color:#475569;width:160px">Student Name</td><td style="padding:6px 0;font-weight:600">{a.get('student_name','')}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Father / Mother</td><td style="padding:6px 0">{a.get('father_name','')} / {a.get('mother_name','')}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Date of Birth</td><td style="padding:6px 0">{a.get('dob','')}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Gender</td><td style="padding:6px 0">{a.get('gender','')}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Qualification</td><td style="padding:6px 0">{a.get('qualification','')}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Course</td><td style="padding:6px 0;font-weight:600;color:#0A2342">{a.get('course','')}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Phone</td><td style="padding:6px 0">{a.get('phone','')}{(' / ' + a.get('alt_phone','')) if a.get('alt_phone') else ''}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569">Email</td><td style="padding:6px 0">{a.get('email','') or '—'}</td></tr>
+          <tr><td style="padding:6px 0;color:#475569;vertical-align:top">Address</td><td style="padding:6px 0">{a.get('address','')}</td></tr>
+        </table>
+        <p style="margin:20px 0 0;font-size:12px;color:#64748b">Received at {a.get('created_at','')}. Open the admin panel to view the student photo.</p>
+      </div>
+    </div>
+    """
 
 # ─────────────────────────── Routes ───────────────────────────
 @api_router.get("/")
@@ -320,9 +476,20 @@ async def list_courses():
     items = await db.courses.find({}, {"_id": 0}).sort("order", 1).to_list(200)
     return items
 
+@api_router.get("/courses/{key}")
+async def get_course(key: str):
+    doc = await db.courses.find_one({"$or": [{"id": key}, {"slug": key}]}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Course not found")
+    return doc
+
 @api_router.post("/courses")
 async def create_course(c: CourseModel, _: str = Depends(require_admin)):
     doc = c.model_dump()
+    if not doc.get("slug"):
+        doc["slug"] = slugify(doc.get("title_en", ""))
+    if await db.courses.find_one({"slug": doc["slug"]}):
+        doc["slug"] = f"{doc['slug']}-{doc['id'][:6]}"
     await db.courses.insert_one(doc)
     doc.pop("_id", None)
     return doc
@@ -330,6 +497,8 @@ async def create_course(c: CourseModel, _: str = Depends(require_admin)):
 @api_router.put("/courses/{cid}")
 async def update_course(cid: str, body: Dict[str, Any], _: str = Depends(require_admin)):
     body.pop("_id", None); body.pop("id", None)
+    if "slug" in body and not body["slug"]:
+        body["slug"] = slugify(body.get("title_en", "") or "")
     await db.courses.update_one({"id": cid}, {"$set": body})
     doc = await db.courses.find_one({"id": cid}, {"_id": 0})
     if not doc:
@@ -365,39 +534,8 @@ async def create_admission(
         "status": "new"
     }
     await db.admissions.insert_one(doc)
-
-    # Fire-and-forget owner email notification (never blocks the response)
-    try:
-        cfg = await db.site_content.find_one({"_id": "singleton"}) or {}
-        to_email = (cfg.get("owner_notification_email") or "").strip()
-        if to_email and cfg.get("notifications_enabled", True):
-            subject = f"New Admission — {student_name} ({course})"
-            html = f"""
-            <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-              <div style="background:#0A2342;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0">
-                <h2 style="margin:0;font-family:Arial,sans-serif">New Admission Received</h2>
-                <p style="margin:6px 0 0;color:#C9A227;font-size:12px;letter-spacing:2px">NEXTGEN COMPUTER ACADEMY</p>
-              </div>
-              <div style="background:#fff;border:1px solid #eee;border-top:0;padding:24px;border-radius:0 0 12px 12px">
-                <table style="width:100%;font-size:14px;color:#1E293B;border-collapse:collapse">
-                  <tr><td style="padding:6px 0;color:#475569;width:160px">Student Name</td><td style="padding:6px 0;font-weight:600">{student_name}</td></tr>
-                  <tr><td style="padding:6px 0;color:#475569">Father / Mother</td><td style="padding:6px 0">{father_name} / {mother_name}</td></tr>
-                  <tr><td style="padding:6px 0;color:#475569">Date of Birth</td><td style="padding:6px 0">{dob}</td></tr>
-                  <tr><td style="padding:6px 0;color:#475569">Gender</td><td style="padding:6px 0">{gender}</td></tr>
-                  <tr><td style="padding:6px 0;color:#475569">Qualification</td><td style="padding:6px 0">{qualification}</td></tr>
-                  <tr><td style="padding:6px 0;color:#475569">Course</td><td style="padding:6px 0;font-weight:600;color:#0A2342">{course}</td></tr>
-                  <tr><td style="padding:6px 0;color:#475569">Phone</td><td style="padding:6px 0">{phone}{(' / ' + alt_phone) if alt_phone else ''}</td></tr>
-                  <tr><td style="padding:6px 0;color:#475569">Email</td><td style="padding:6px 0">{email or '—'}</td></tr>
-                  <tr><td style="padding:6px 0;color:#475569;vertical-align:top">Address</td><td style="padding:6px 0">{address}</td></tr>
-                </table>
-                <p style="margin:20px 0 0;font-size:12px;color:#64748b">Received at {datetime.now(timezone.utc).isoformat()}. Open the admin panel to view the student photo.</p>
-              </div>
-            </div>
-            """
-            asyncio.create_task(send_email_async(to_email, subject, html))
-    except Exception as e:
-        logger.error("Failed to schedule admission email: %s", e)
-
+    # Multi-channel fire-and-forget notification (email now, WhatsApp-ready)
+    await dispatch_admission_notification(doc)
     return {"ok": True, "id": aid, "message": "Admission received"}
 
 @api_router.get("/admissions")
@@ -450,6 +588,145 @@ async def get_gallery_image(gid: str):
 async def delete_gallery(gid: str, _: str = Depends(require_admin)):
     await db.gallery.update_one({"id": gid}, {"$set": {"is_deleted": True}})
     return {"ok": True}
+
+# ─────────────────────────── Testimonials ───────────────────────────
+class TestimonialModel(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    role: Dict[str, str] = Field(default_factory=lambda: {"en": "", "te": ""})
+    message: Dict[str, str] = Field(default_factory=lambda: {"en": "", "te": ""})
+    rating: int = 5
+    photo_url: str = ""
+    published: bool = True
+    order: int = 0
+
+@api_router.get("/testimonials")
+async def list_testimonials():
+    items = await db.testimonials.find({"published": True}, {"_id": 0}).sort("order", 1).to_list(200)
+    return items
+
+@api_router.get("/admin/testimonials")
+async def admin_list_testimonials(_: str = Depends(require_admin)):
+    items = await db.testimonials.find({}, {"_id": 0}).sort("order", 1).to_list(500)
+    return items
+
+@api_router.post("/testimonials")
+async def create_testimonial(t: TestimonialModel, _: str = Depends(require_admin)):
+    doc = t.model_dump()
+    doc["created_at"] = datetime.now(timezone.utc).isoformat()
+    await db.testimonials.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api_router.put("/testimonials/{tid}")
+async def update_testimonial(tid: str, body: Dict[str, Any], _: str = Depends(require_admin)):
+    body.pop("_id", None); body.pop("id", None)
+    await db.testimonials.update_one({"id": tid}, {"$set": body})
+    doc = await db.testimonials.find_one({"id": tid}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Not found")
+    return doc
+
+@api_router.delete("/testimonials/{tid}")
+async def delete_testimonial(tid: str, _: str = Depends(require_admin)):
+    await db.testimonials.delete_one({"id": tid})
+    return {"ok": True}
+
+# ─────────────────────────── Bulk export ───────────────────────────
+EXPORT_COLUMNS = [
+    ("created_at", "Received At"),
+    ("student_name", "Student Name"),
+    ("father_name", "Father Name"),
+    ("mother_name", "Mother Name"),
+    ("dob", "Date of Birth"),
+    ("gender", "Gender"),
+    ("qualification", "Qualification"),
+    ("course", "Course"),
+    ("phone", "Phone"),
+    ("alt_phone", "Alt Phone"),
+    ("email", "Email"),
+    ("address", "Address"),
+    ("status", "Status"),
+    ("id", "Admission ID"),
+]
+
+@api_router.get("/admissions/export/csv")
+async def export_admissions_csv(authorization: Optional[str] = Header(None), auth: Optional[str] = Query(None)):
+    verify_token(authorization, auth)
+    items = await db.admissions.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([label for _, label in EXPORT_COLUMNS])
+    for it in items:
+        writer.writerow([str(it.get(k, "") or "") for k, _ in EXPORT_COLUMNS])
+    csv_bytes = buf.getvalue().encode("utf-8-sig")  # BOM so Excel opens Telugu correctly
+    fname = f"admissions-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.csv"
+    return Response(content=csv_bytes, media_type="text/csv",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+@api_router.get("/admissions/export/xlsx")
+async def export_admissions_xlsx(authorization: Optional[str] = Header(None), auth: Optional[str] = Query(None)):
+    verify_token(authorization, auth)
+    items = await db.admissions.find({}, {"_id": 0}).sort("created_at", -1).to_list(10000)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Admissions"
+    ws.append([label for _, label in EXPORT_COLUMNS])
+    for it in items:
+        ws.append([str(it.get(k, "") or "") for k, _ in EXPORT_COLUMNS])
+    # column widths
+    for i, (_, label) in enumerate(EXPORT_COLUMNS, start=1):
+        ws.column_dimensions[ws.cell(row=1, column=i).column_letter].width = max(14, len(label) + 4)
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    fname = f"admissions-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.xlsx"
+    return Response(content=out.read(),
+                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
+# ─────────────────────────── SEO — sitemap & robots ───────────────────────────
+def _resolve_site_url(cfg: Dict[str, Any]) -> str:
+    seo = (cfg or {}).get("seo") or {}
+    return (seo.get("canonical_url") or os.environ.get("PUBLIC_SITE_URL") or "").rstrip("/")
+
+@api_router.get("/sitemap.xml")
+async def sitemap_xml():
+    cfg = await db.site_content.find_one({"_id": "singleton"}) or {}
+    base = _resolve_site_url(cfg) or ""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    urls = [
+        (f"{base}/", "1.0"),
+        (f"{base}/#about", "0.8"),
+        (f"{base}/#courses", "0.9"),
+        (f"{base}/#trainer", "0.7"),
+        (f"{base}/#gallery", "0.6"),
+        (f"{base}/#admission", "0.9"),
+        (f"{base}/#contact", "0.7"),
+    ]
+    courses = await db.courses.find({}, {"_id": 0, "slug": 1, "id": 1}).to_list(200)
+    for c in courses:
+        slug = c.get("slug") or c.get("id")
+        urls.append((f"{base}/course/{slug}", "0.7"))
+    body = ['<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for loc, prio in urls:
+        body.append(f"  <url><loc>{loc}</loc><lastmod>{now}</lastmod><changefreq>weekly</changefreq><priority>{prio}</priority></url>")
+    body.append("</urlset>")
+    return Response(content="\n".join(body), media_type="application/xml")
+
+@api_router.get("/robots.txt")
+async def robots_txt():
+    cfg = await db.site_content.find_one({"_id": "singleton"}) or {}
+    base = _resolve_site_url(cfg) or ""
+    lines = [
+        "User-agent: *",
+        "Allow: /",
+        "Disallow: /admin",
+        "Disallow: /admin/",
+        f"Sitemap: {base}/api/sitemap.xml" if base else "Sitemap: /api/sitemap.xml",
+    ]
+    return Response(content="\n".join(lines), media_type="text/plain")
 
 # Chat
 @api_router.post("/chat")

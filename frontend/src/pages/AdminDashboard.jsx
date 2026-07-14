@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { toast } from "sonner";
-import { LogOut, Save, Trash2, Upload, Plus, ExternalLink, RefreshCw, Loader2, Users, BookOpen, Settings, Image as ImageIcon, GraduationCap, Bell, Send, AlertCircle, CheckCircle2 } from "lucide-react";
+import { LogOut, Save, Trash2, Upload, Plus, ExternalLink, RefreshCw, Loader2, Users, BookOpen, Settings, Image as ImageIcon, GraduationCap, Bell, Send, AlertCircle, CheckCircle2, Download, MessageSquare, Star, Search } from "lucide-react";
 import api, { authApi, contentApi, coursesApi, admissionsApi, galleryApi } from "@/lib/api";
 import { useApp } from "@/context/AppContext";
 
@@ -74,6 +74,7 @@ export default function AdminDashboard() {
         <main>
           {tab === "content" && <ContentTab onSaved={refresh} />}
           {tab === "courses" && <CoursesTab onSaved={refresh} />}
+          {tab === "testimonials" && <TestimonialsTab />}
           {tab === "admissions" && <AdmissionsTab />}
           {tab === "gallery" && <GalleryTab />}
           {tab === "notifications" && <NotificationsTab />}
@@ -175,6 +176,22 @@ function ContentTab({ onSaved }) {
 
       <Panel title="AI Assistant Instructions">
         <Field label="System prompt / info the AI knows" textarea value={c.ai_assistant_info} onChange={v => setC({ ...c, ai_assistant_info: v })} />
+      </Panel>
+
+      <Panel title="SEO — Search Engine Optimization">
+        <div className="grid md:grid-cols-2 gap-4">
+          <Field label="Site Title" value={c.seo?.site_title} onChange={v => setC({ ...c, seo: { ...(c.seo||{}), site_title: v } })} className="md:col-span-2" />
+          <Field label="Meta Description (shown in Google results)" textarea value={c.seo?.site_description} onChange={v => setC({ ...c, seo: { ...(c.seo||{}), site_description: v } })} className="md:col-span-2" />
+          <Field label="Keywords (comma separated)" textarea value={c.seo?.site_keywords} onChange={v => setC({ ...c, seo: { ...(c.seo||{}), site_keywords: v } })} className="md:col-span-2" />
+          <Field label="Open Graph / Social Share Image URL" value={c.seo?.og_image} onChange={v => setC({ ...c, seo: { ...(c.seo||{}), og_image: v } })} className="md:col-span-2" />
+          <Field label="Canonical Site URL (e.g. https://nextgencomputeracademy.in)" value={c.seo?.canonical_url} onChange={v => setC({ ...c, seo: { ...(c.seo||{}), canonical_url: v } })} />
+          <Field label="Twitter Handle (e.g. @nextgen)" value={c.seo?.twitter_handle} onChange={v => setC({ ...c, seo: { ...(c.seo||{}), twitter_handle: v } })} />
+        </div>
+        <div className="mt-3 text-xs text-slate-500">
+          Sitemap: <a href={`${api.defaults.baseURL}/sitemap.xml`} target="_blank" rel="noreferrer" className="text-navy underline font-mono">/api/sitemap.xml</a>
+          <span className="mx-2">·</span>
+          Robots: <a href={`${api.defaults.baseURL}/robots.txt`} target="_blank" rel="noreferrer" className="text-navy underline font-mono">/api/robots.txt</a>
+        </div>
       </Panel>
 
       <Panel title="Meet Your Trainer">
@@ -283,11 +300,22 @@ function CoursesTab({ onSaved }) {
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Title (EN)" value={c.title_en} onChange={v => update(c.id, { title_en: v })} />
             <Field label="Title (TE)" value={c.title_te} onChange={v => update(c.id, { title_te: v })} />
-            <Field label="Description (EN)" textarea value={c.desc_en} onChange={v => update(c.id, { desc_en: v })} />
-            <Field label="Description (TE)" textarea value={c.desc_te} onChange={v => update(c.id, { desc_te: v })} />
+            <Field label="URL Slug (leave blank to auto-generate)" value={c.slug} onChange={v => update(c.id, { slug: v })} className="md:col-span-2" />
+            <Field label="Short Description (EN)" textarea value={c.desc_en} onChange={v => update(c.id, { desc_en: v })} />
+            <Field label="Short Description (TE)" textarea value={c.desc_te} onChange={v => update(c.id, { desc_te: v })} />
+            <Field label="Full Description (EN) — shown on course detail page" textarea value={c.long_desc_en} onChange={v => update(c.id, { long_desc_en: v })} />
+            <Field label="Full Description (TE)" textarea value={c.long_desc_te} onChange={v => update(c.id, { long_desc_te: v })} />
             <Field label="Fee" value={c.fee} onChange={v => update(c.id, { fee: v })} />
             <Field label="Duration" value={c.duration} onChange={v => update(c.id, { duration: v })} />
             <Field label="Image URL" value={c.image_url} onChange={v => update(c.id, { image_url: v })} className="md:col-span-2" />
+            <Field label="Prerequisites (EN)" textarea value={c.prerequisites_en} onChange={v => update(c.id, { prerequisites_en: v })} />
+            <Field label="Prerequisites (TE)" textarea value={c.prerequisites_te} onChange={v => update(c.id, { prerequisites_te: v })} />
+            <div className="md:col-span-2 grid md:grid-cols-2 gap-4">
+              <ListEditor label="Syllabus Topics (EN)" items={c.syllabus_en || []} onChange={arr => update(c.id, { syllabus_en: arr })} />
+              <ListEditor label="Syllabus Topics (TE)" items={c.syllabus_te || []} onChange={arr => update(c.id, { syllabus_te: arr })} />
+              <ListEditor label="Learning Outcomes (EN)" items={c.outcomes_en || []} onChange={arr => update(c.id, { outcomes_en: arr })} />
+              <ListEditor label="Learning Outcomes (TE)" items={c.outcomes_te || []} onChange={arr => update(c.id, { outcomes_te: arr })} />
+            </div>
           </div>
           <div className="mt-4 flex justify-end gap-2">
             <button onClick={() => removeOne(c.id)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50">
@@ -306,6 +334,7 @@ function CoursesTab({ onSaved }) {
 function AdmissionsTab() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
 
   const load = () => { setLoading(true); admissionsApi.list().then(setItems).finally(() => setLoading(false)); };
   useEffect(() => { load(); }, []);
@@ -315,18 +344,46 @@ function AdmissionsTab() {
     await admissionsApi.remove(id); load();
   };
 
+  const exportFile = (fmt) => {
+    const t = localStorage.getItem("ngca_token") || "";
+    const url = `${api.defaults.baseURL}/admissions/export/${fmt}?auth=${encodeURIComponent(t)}`;
+    window.open(url, "_blank");
+  };
+
+  const filtered = query
+    ? items.filter(a => `${a.student_name} ${a.phone} ${a.email} ${a.course}`.toLowerCase().includes(query.toLowerCase()))
+    : items;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="font-display font-bold text-2xl text-navy">Admission Applications ({items.length})</h3>
-        <button onClick={load} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100">
-          <RefreshCw className="w-4 h-4" /> Refresh
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="font-display font-bold text-2xl text-navy">Admissions ({items.length})</h3>
+        <div className="flex flex-wrap gap-2">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              data-testid="admissions-search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search name / phone / course"
+              className="pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm w-64 focus:border-gold outline-none"
+            />
+          </div>
+          <button data-testid="export-csv" onClick={() => exportFile("csv")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white border border-slate-200 text-sm text-navy font-semibold hover:border-gold hover:text-gold">
+            <Download className="w-4 h-4" /> CSV
+          </button>
+          <button data-testid="export-xlsx" onClick={() => exportFile("xlsx")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-navy text-white text-sm font-semibold hover:bg-gold hover:text-black">
+            <Download className="w-4 h-4" /> Excel
+          </button>
+          <button onClick={load} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-slate-700 hover:bg-slate-100">
+            <RefreshCw className="w-4 h-4" /> Refresh
+          </button>
+        </div>
       </div>
       {loading ? <Loader2 className="w-5 h-5 animate-spin" /> :
-        items.length === 0 ? <div className="text-sm text-slate-500 bg-white p-8 rounded-xl border">No admissions yet.</div> :
+        filtered.length === 0 ? <div className="text-sm text-slate-500 bg-white p-8 rounded-xl border">No admissions match your search.</div> :
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {items.map(a => (
+          {filtered.map(a => (
             <div key={a.id} className="bg-white rounded-2xl border border-slate-200 p-4 flex gap-4">
               {a.photo_path ? (
                 <img src={admissionsApi.photoUrl(a.id)} alt={a.student_name} className="w-20 h-20 rounded-xl object-cover border border-slate-100" />
@@ -522,3 +579,134 @@ function NotificationsTab() {
     </div>
   );
 }
+
+function ListEditor({ label, items, onChange }) {
+  const update = (i, v) => { const cp = [...items]; cp[i] = v; onChange(cp); };
+  const add = () => onChange([...items, ""]);
+  const remove = (i) => onChange(items.filter((_, j) => j !== i));
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">{label}</label>
+        <button type="button" onClick={add} className="text-xs font-semibold text-navy hover:text-gold inline-flex items-center gap-1">
+          <Plus className="w-3 h-3" /> Add
+        </button>
+      </div>
+      <div className="space-y-2">
+        {items.length === 0 && <div className="text-xs text-slate-400 italic px-2">No items yet.</div>}
+        {items.map((it, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 w-6 shrink-0">{i + 1}.</span>
+            <input
+              value={it}
+              onChange={e => update(i, e.target.value)}
+              className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-sm focus:border-gold outline-none"
+            />
+            <button type="button" onClick={() => remove(i)} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TestimonialsTab() {
+  const [items, setItems] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const load = () => api.get("/admin/testimonials").then(r => setItems(r.data));
+  useEffect(() => { load(); }, []);
+
+  const update = (id, patch) => setItems(l => l.map(t => t.id === id ? { ...t, ...patch } : t));
+  const setBilingual = (id, key, sub, v) => setItems(l => l.map(t => t.id === id ? { ...t, [key]: { ...(t[key] || {}), [sub]: v } } : t));
+
+  const saveOne = async (t) => {
+    try { await api.put(`/testimonials/${t.id}`, t); toast.success("Saved"); load(); }
+    catch { toast.error("Failed"); }
+  };
+  const removeOne = async (id) => {
+    if (!window.confirm("Delete this testimonial?")) return;
+    await api.delete(`/testimonials/${id}`); load();
+  };
+  const addOne = async () => {
+    setBusy(true);
+    try {
+      await api.post("/testimonials", {
+        name: "New Student",
+        role: { en: "", te: "" },
+        message: { en: "", te: "" },
+        rating: 5,
+        photo_url: "",
+        published: false,
+        order: items.length,
+      });
+      load();
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-display font-bold text-2xl text-navy">Testimonials ({items.length})</h3>
+        <button data-testid="testimonial-add" onClick={addOne} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gold text-black font-semibold hover:bg-navy hover:text-white transition-colors">
+          <Plus className="w-4 h-4" /> Add Testimonial
+        </button>
+      </div>
+
+      {items.map((t, idx) => (
+        <div key={t.id} data-testid={`testimonial-row-${idx}`} className="bg-white rounded-2xl border border-slate-200 p-5">
+          <div className="grid md:grid-cols-2 gap-4">
+            <Field label="Student Name" value={t.name} onChange={v => update(t.id, { name: v })} />
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Rating</label>
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => update(t.id, { rating: n })}
+                    className={`p-1 rounded ${n <= (t.rating || 0) ? "text-gold" : "text-slate-200"} hover:text-gold`}
+                  >
+                    <Star className="w-6 h-6" fill="currentColor" />
+                  </button>
+                ))}
+                <span className="ml-2 text-sm text-slate-500">{t.rating}/5</span>
+              </div>
+            </div>
+            <Field label="Role / Course (EN)" value={t.role?.en} onChange={v => setBilingual(t.id, "role", "en", v)} />
+            <Field label="Role / Course (TE)" value={t.role?.te} onChange={v => setBilingual(t.id, "role", "te", v)} />
+            <Field label="Message (EN)" textarea value={t.message?.en} onChange={v => setBilingual(t.id, "message", "en", v)} />
+            <Field label="Message (TE)" textarea value={t.message?.te} onChange={v => setBilingual(t.id, "message", "te", v)} />
+            <Field label="Photo URL" value={t.photo_url} onChange={v => update(t.id, { photo_url: v })} />
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Display Order</label>
+              <input type="number" value={t.order || 0} onChange={e => update(t.id, { order: parseInt(e.target.value) || 0 })} className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:border-gold outline-none text-sm" />
+            </div>
+          </div>
+          <div className="mt-4 flex items-center justify-between">
+            <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!t.published}
+                onChange={e => update(t.id, { published: e.target.checked })}
+                className="w-4 h-4"
+              />
+              Published on public site
+            </label>
+            <div className="flex gap-2">
+              <button onClick={() => removeOne(t.id)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm text-red-600 hover:bg-red-50">
+                <Trash2 className="w-4 h-4" /> Delete
+              </button>
+              <button onClick={() => saveOne(t)} data-testid={`testimonial-save-${idx}`} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-navy text-white text-sm font-semibold hover:bg-gold hover:text-black transition-colors">
+                <Save className="w-4 h-4" /> Save
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+

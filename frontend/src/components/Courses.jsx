@@ -1,11 +1,10 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { useApp } from "@/context/AppContext";
 import { ArrowUpRight, Clock, IndianRupee } from "lucide-react";
 
 export default function Courses() {
   const { lang, courses } = useApp();
-
-  const jump = () => document.getElementById("admission")?.scrollIntoView({ behavior: "smooth" });
 
   return (
     <section id="courses" className="py-20 lg:py-28">
@@ -29,7 +28,8 @@ export default function Courses() {
 
         <div className="mt-12 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {courses.map((c, i) => (
-            <article
+            <Link
+              to={`/course/${c.slug || c.id}`}
               key={c.id}
               data-testid={`course-card-${i}`}
               className="group relative bg-white rounded-3xl overflow-hidden border border-slate-100 hover:border-gold/40 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col"
@@ -51,16 +51,15 @@ export default function Courses() {
                 <p className="font-te text-navy/80 text-base leading-snug mt-1" lang="te">{c.title_te}</p>
                 <p className="mt-3 text-slate-600 text-sm leading-relaxed">{c.desc_en}</p>
                 <p className="mt-2 font-te text-slate-600 text-sm leading-relaxed" lang="te">{c.desc_te}</p>
-                <button
-                  onClick={jump}
-                  data-testid={`course-enroll-${i}`}
-                  className="mt-5 inline-flex items-center gap-1.5 text-navy font-semibold text-sm hover:text-gold self-start group/btn"
+                <span
+                  data-testid={`course-detail-link-${i}`}
+                  className="mt-5 inline-flex items-center gap-1.5 text-navy font-semibold text-sm group-hover:text-gold self-start"
                 >
-                  {lang === "te" ? "ఇప్పుడే చేరండి" : "Enroll Now"}
-                  <ArrowUpRight className="w-4 h-4 group-hover/btn:rotate-45 transition-transform" />
-                </button>
+                  {lang === "te" ? "వివరాలు చూడండి" : "View Details"}
+                  <ArrowUpRight className="w-4 h-4 group-hover:rotate-45 transition-transform" />
+                </span>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       </div>

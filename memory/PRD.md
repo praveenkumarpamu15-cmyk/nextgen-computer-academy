@@ -30,3 +30,11 @@ Build a premium production-ready bilingual (English + Telugu) website for NextGe
 - **P2** — Course-level detail page with syllabus.
 - **P2** — Simple SEO meta + Open Graph tags per section.
 - **P2** — Rate-limit + captcha on public admission endpoint.
+
+## Implemented (2026-07-14 · Session 2)
+- **Testimonials** — public section on homepage + full admin CRUD tab (bilingual message/role, 5-star rating, photo, published toggle, display order). 4 default testimonials seeded. Public endpoint filters to `published=true`.
+- **Course Detail pages** at `/course/:slug` (or `/course/:id`) — full description, syllabus grid, learning outcomes, prerequisites, sticky sidebar CTA with fee/duration, related courses, JSON-LD Course schema.
+- **Extended course model** — auto-generated URL slugs, long_desc_en/te, syllabus_en/te lists, outcomes_en/te lists, prerequisites_en/te. All editable in admin panel with per-list add/remove UI.
+- **Bulk admissions export** — CSV (UTF-8 BOM so Excel opens Telugu correctly) and native XLSX. Downloaded via query-param JWT auth. Buttons + search filter in Admissions tab.
+- **SEO — complete** — react-helmet-async per-page meta management; `/api/sitemap.xml` (dynamic from courses + section anchors); `/api/robots.txt`; Open Graph + Twitter Card tags; EducationalOrganization structured data (site-wide) + Course structured data (per detail page); canonical URLs; owner-editable SEO fields (title, description, keywords, OG image, canonical URL, Twitter handle) in admin panel.
+- **Notification channel abstraction** — refactored `dispatch_admission_notification()` iterates `NOTIFICATION_CHANNELS` registry. Email channel active (still optional / no-ops without RESEND_API_KEY). WhatsApp channel stubbed and disabled — enabling later just needs setting `WHATSAPP_ACCESS_TOKEN` env + filling in the send helper; admission flow needs zero changes.

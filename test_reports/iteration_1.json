@@ -1,0 +1,54 @@
+{
+  "summary": "Regression verification after frontend-only date-fns downgrade (4.1.0 -> 3.6.0). Backend: 16/16 pytest cases passed. Frontend: homepage renders 9 course cards, language toggle works, course detail /course/tally-prime loads without errors, demo booking form submits end-to-end (POST /api/demo-bookings -> 200, demo-success rendered), admission form submits end-to-end (admission-success rendered), admin login succeeds with seeded credentials and redirects to /admin/dashboard. date-fns downgrade caused NO runtime regressions (no imports of date-fns in src). Two pre-existing (unrelated to this change) issues were surfaced.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "AdminDashboard sidebar (/app/frontend/src/pages/AdminDashboard.jsx lines 8-15)",
+        "issue": "TABS array is missing the 'testimonials' entry, so only 6/7 tabs are visible in the sidebar. TestimonialsTab component exists (line 78: `{tab === 'testimonials' && <TestimonialsTab />}`) but no menu entry lets the admin navigate to it. Pre-existing bug, unrelated to date-fns downgrade. Spec expects 7 tabs.",
+        "selector": "sidebar nav in AdminDashboard",
+        "priority": "MEDIUM"
+      },
+      {
+        "component": "Gallery (HomePage)",
+        "issue": "One gallery image renders as broken (alt text 'Gallery 6' visible, image resource not loading). Pre-existing, unrelated to this change.",
+        "selector": "Gallery section image #6",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Homepage (console)",
+        "issues": ["React hydration warning: '<span> cannot be a child of <option>' - minor, does not break UI. Pre-existing."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Add `{ key: 'testimonials', label: 'Testimonials', icon: MessageSquare }` to the TABS array in /app/frontend/src/pages/AdminDashboard.jsx (line 8-15) so the Testimonials tab is reachable from the sidebar. NOT caused by date-fns change but flagged since the review request lists it as a required visible tab.",
+    "Optional: fix the broken 6th gallery image URL and the `<span>` inside `<option>` hydration warning in DemoBooking/AdmissionForm select rendering."
+  ],
+  "critical_code_review_comments": [
+    "date-fns downgrade to ^3.6.0 is safe: no source files import date-fns. Build & runtime clean.",
+    "AdminDashboard.jsx (867 lines) exceeds the 700-line guideline. Consider splitting each Tab component into its own file.",
+    "Admission form testids follow `field-<name>` pattern, not the `admission-<field>` naming referenced in the review request; either is fine but keep spec + code aligned.",
+    "Admin dashboard TABS array missing testimonials entry despite TestimonialsTab being implemented and rendered conditionally (dead-reachable code path)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (created for regression coverage)"
+  ],
+  "success_rate": {"backend": "100% (16/16)", "frontend": "95% (7/8 flows fully green; only missing Testimonials tab visibility)"},
+  "test_credentials": "admin@nextgen.local / NextGen@2025 (verified working)",
+  "seed_data_creation": "Backend seeds admin user + 9 default courses on startup; verified via GET /api/courses (returns >=9).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend regression suite lives at /app/backend/tests/backend_test.py (pytest, 16 tests, parallel-safe). Admin dashboard tab layout is missing the Testimonials sidebar entry — that is a pre-existing bug unrelated to the date-fns downgrade. Demo form has time as a <select> (values like '10:00 AM'), NOT a text input, and demo-course is also a <select>. Admission form field testids follow `field-<name>` pattern (e.g., field-student_name, field-gender, field-course).",
+  "rca of the issue": "date-fns downgrade check: PASS. No src file imports date-fns; only react-day-picker@8 depends on it and its peer range is now satisfied by v3.6.0. Local build + preview runtime both clean. The Testimonials tab absence in the sidebar is a code-level omission in the TABS array (AdminDashboard.jsx L8-15) and has nothing to do with date-fns."
+}
